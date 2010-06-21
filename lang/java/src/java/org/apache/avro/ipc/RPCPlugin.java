@@ -43,12 +43,18 @@ public class RPCPlugin {
    * @param context the handshake rpc context
    */
   public void clientFinishConnect(RPCContext context) { }
-  
+
   /**
    * This method is invoked at the client before it issues the RPC call.
    * @param context the per-call rpc context (in/out parameter)
    */
-  public void clientSendRequest(RPCContext context) { }
+  public void preClientSendRequest(RPCContext context) { }
+  
+  /**
+   * This method is invoked at the client after it issues the RPC call.
+   * @param context the per-call rpc context (in/out parameter)
+   */
+  public void postClientSendRequest(RPCContext context) { }
   
   /**
    * This method is invoked at the RPC server when the request is received,
@@ -59,10 +65,17 @@ public class RPCPlugin {
   
   /**
    * This method is invoked at the server after the call is executed,
-   * but before the response is returned to the client
+   * but before the response has been formulated
    * @param context the per-call rpc context (in/out parameter)
    */
-  public void serverSendResponse(RPCContext context) { }
+  public void preServerSendResponse(RPCContext context) { }
+  
+  /**
+   * This method is invoked at the server after the call is executed,
+   * and the response has been formulated
+   * @param context the per-call rpc context (in/out parameter)
+   */
+  public void postServerSendResponse(RPCContext context) { }
     
   /**
    * This method is invoked at the client after the call is executed,

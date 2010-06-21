@@ -111,9 +111,9 @@ public class TestStatsPluginAndServlet {
     // Check in progress RPCs
     assertTrue(r.contains("m: 0ms"));
     assertTrue(r.contains("m: 100ms"));
-    statsPlugin.serverSendResponse(context1);
+    statsPlugin.postServerSendResponse(context1);
     t.passTime(900*MS); // second takes 900ms
-    statsPlugin.serverSendResponse(context2);
+    statsPlugin.postServerSendResponse(context2);
 
     r = generateServletResponse(statsPlugin);
     assertTrue(r.contains("Average Duration: 500ms"));

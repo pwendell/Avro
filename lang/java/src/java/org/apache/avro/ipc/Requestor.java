@@ -101,19 +101,36 @@ public abstract class Requestor {
         throw new AvroRuntimeException("Not a local message: "+messageName);
       context.setMessage(m);
       
+      // get meta-data from plugins
       for (RPCPlugin plugin : rpcMetaPlugins) {
-        plugin.clientSendRequest(context);
+        plugin.preClientSendRequest(context);
       }
       
       META_WRITER.write(context.requestCallMeta(), out);
       out.writeString(m.getName());               // write message name
       writeRequest(m.getRequest(), request, out); // write request payload
       
+      List<ByteBuffer> bbList = bbo.getBufferList();
+      context.setRequestPayload(bbList);
+      
       if (m.isOneWay() && t.isConnected()) {      // send one-way message
-        t.writeBuffers(bbo.getBufferList());
+        t.writeBuffers(bbList);
+        
+        // Call plugins again now that request has been sent
+        for (RPCPlugin plugin : rpcMetaPlugins) {
+          plugin.postClientSendRequest(context);
+        }
+        
         return null;
       } else {                                    // two-way message
-        List<ByteBuffer> response = t.transceive(bbo.getBufferList());
+        List<ByteBuffer> response = t.transceive(bbList);
+        
+        // Call plugins again now that request has been sent
+        for (RPCPlugin plugin : rpcMetaPlugins) {
+          plugin.postClientSendRequest(context);
+        }
+        
+        context.setResponsePayload(response);
         ByteBufferInputStream bbi = new ByteBufferInputStream(response);
         in = DecoderFactory.defaultFactory().createBinaryDecoder(bbi, in);
       }

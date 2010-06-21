@@ -89,7 +89,7 @@ public class StatsPlugin extends RPCPlugin {
   }
 
   @Override
-  public void serverSendResponse(RPCContext context) {
+  public void postServerSendResponse(RPCContext context) {
     Stopwatch t = this.activeRpcs.remove(context);
     t.stop();
     publish(context, t);
