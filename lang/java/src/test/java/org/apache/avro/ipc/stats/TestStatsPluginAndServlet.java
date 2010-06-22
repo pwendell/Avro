@@ -22,6 +22,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.apache.avro.Protocol;
 import org.apache.avro.Protocol.Message;
@@ -31,10 +34,13 @@ import org.apache.avro.generic.GenericRequestor;
 import org.apache.avro.generic.GenericResponder;
 import org.apache.avro.ipc.AvroRemoteException;
 import org.apache.avro.ipc.HttpServer;
+import org.apache.avro.ipc.HttpTransceiver;
 import org.apache.avro.ipc.LocalTransceiver;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.Responder;
 import org.apache.avro.ipc.Transceiver;
+import org.apache.avro.specific.SpecificRequestor;
+import org.apache.avro.util.Utf8;
 import org.junit.Test;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
@@ -55,7 +61,11 @@ public class TestStatsPluginAndServlet {
       throws IOException {
     StatsServlet servlet = new StatsServlet(statsPlugin);
     StringWriter w = new StringWriter();
-    servlet.writeStats(w);
+    try {
+			servlet.writeStats(w);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
     String o = w.toString();
     return o;
   }
@@ -101,7 +111,8 @@ public class TestStatsPluginAndServlet {
   @Test
   public void testMultipleRPCs() throws IOException {
     FakeTicks t = new FakeTicks();
-    StatsPlugin statsPlugin = new StatsPlugin(t, StatsPlugin.DEFAULT_SEGMENTER);
+    StatsPlugin statsPlugin = new StatsPlugin(t, StatsPlugin.LATENCY_SEGMENTER,
+    		StatsPlugin.PAYLOAD_SEGMENTER);
     RPCContext context1 = makeContext();
     RPCContext context2 = makeContext();
     statsPlugin.serverReceiveRequest(context1);
@@ -111,14 +122,29 @@ public class TestStatsPluginAndServlet {
     // Check in progress RPCs
     assertTrue(r.contains("m: 0ms"));
     assertTrue(r.contains("m: 100ms"));
-    statsPlugin.postServerSendResponse(context1);
+    statsPlugin.serverSendResponse(context1);
     t.passTime(900*MS); // second takes 900ms
-    statsPlugin.postServerSendResponse(context2);
+    statsPlugin.serverSendResponse(context2);
 
     r = generateServletResponse(statsPlugin);
     assertTrue(r.contains("Average Duration: 500ms"));
   }
 
+  @Test
+  public void testPayloadSize() throws IOException {
+    Responder r = new TestResponder(protocol);
+    StatsPlugin statsPlugin = new StatsPlugin();
+    r.addRPCPlugin(statsPlugin);
+    Transceiver t = new LocalTransceiver(r);
+    makeRequest(t);
+    
+    // Test to be filled in once payload metrics are generated
+    String resp = generateServletResponse(statsPlugin);
+    System.out.println(resp);
+    //assertTrue(resp.contains("Average Payload: 4"));
+ 
+  }
+  
   private RPCContext makeContext() {
     RPCContext context = new RPCContext();
     context.setMessage(message);
@@ -144,7 +170,8 @@ public class TestStatsPluginAndServlet {
   }
 
   /**
-   * Demo program for using RPC stats.  Tool can be used (as below)
+   * Demo program for using RPC stats. This automatically generates
+   * client RPC requests. Alternatively a can be used (as below)
    * to trigger RPCs.
    * <pre>
    * java -jar build/avro-tools-*.jar rpcsend '{"protocol":"sleepy","namespace":null,"types":[],"messages":{"sleep":{"request":[{"name":"millis","type":"long"}],"response":"null"}}}' sleep localhost 7002 '{"millis": 20000}'
@@ -158,7 +185,8 @@ public class TestStatsPluginAndServlet {
     }
     Protocol protocol = Protocol.parse("{\"protocol\": \"sleepy\", "
         + "\"messages\": { \"sleep\": {"
-        + "   \"request\": [{\"name\": \"millis\", \"type\": \"long\"}], "
+        + "   \"request\": [{\"name\": \"millis\", \"type\": \"long\"}," +
+        		"{\"name\": \"data\", \"type\": \"bytes\"}], "
         + "   \"response\": \"null\"} } }");
     Log.info("Using protocol: " + protocol.toString());
     Responder r = new SleepyResponder(protocol);
@@ -172,9 +200,25 @@ public class TestStatsPluginAndServlet {
     Server httpServer = new Server(Integer.parseInt(args[1]));
     new Context(httpServer, "/").addServlet(
         new ServletHolder(new StatsServlet(p)), "/*");
+    
     httpServer.start();
+    
+    HttpTransceiver trans = new HttpTransceiver(
+        new URL("http://localhost:" + Integer.parseInt(args[0])));
+    GenericRequestor req = new GenericRequestor(protocol, trans); 
+    
+    
     while(true) {
-      Thread.sleep(60*1000);
+      Thread.sleep(1000);
+      GenericRecord params = new GenericData.Record(protocol.getMessages().get(
+        "sleep").getRequest());
+      Random rand = new Random();
+      params.put("millis", Math.abs(rand.nextLong()) % 1000);
+      int payloadSize = Math.abs(rand.nextInt()) % 10000;
+      byte[] payload = new byte[payloadSize];
+      rand.nextBytes(payload);
+      params.put("data", ByteBuffer.wrap(payload));
+      req.request("sleep", params);
     }
   }
 }

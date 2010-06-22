@@ -18,13 +18,26 @@
 package org.apache.avro.ipc.stats;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
 import java.io.Writer;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.VelocityEngine;
+import org.apache.velocity.exception.ParseErrorException;
+import org.apache.velocity.exception.ResourceNotFoundException;
 
 import org.apache.avro.Protocol.Message;
 import org.apache.avro.ipc.RPCContext;
@@ -36,69 +49,167 @@ import org.apache.avro.ipc.RPCContext;
  * This class follows the same synchronization conventions
  * as StatsPlugin, to avoid requiring StatsPlugin to serve
  * a copy of the data.
- */
+ */ 
 public class StatsServlet extends HttpServlet {
   private final StatsPlugin statsPlugin;
-
+  private VelocityEngine ve;
+  
   public StatsServlet(StatsPlugin statsPlugin) {
     this.statsPlugin = statsPlugin;
+    this.ve = new VelocityEngine();
+    ve.addProperty("resource.loader", "file");
+    ve.addProperty("file.resource.loader.path",
+    		getClass().getProtectionDomain().getCodeSource().
+    		getLocation().getPath());
   }
 
+  public static List<String> escapeStringArray(List<String> input) {
+    for (int i = 0; i < input.size(); i++) {
+      input.set(i, "\"" + input.get(i) + "\"");
+    }
+    return input;
+  }
+  
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    resp.setContentType("text/html");
-    writeStats(resp.getWriter());
+  	if (req.getRequestURI().endsWith(".js") || 
+  	    req.getRequestURI().endsWith(".css")) {
+  		Template t = null;
+  		String[] queryParts = req.getRequestURI().split("/");
+  		String jsFileName = queryParts[queryParts.length - 1];
+      resp.setContentType("text/javascript");
+			try {
+			  InputStream is = getClass().getClassLoader().getResourceAsStream(
+			      "org/apache/avro/ipc/stats/templates/" + jsFileName);
+				PrintWriter out = resp.getWriter();
+				int i;
+				while ((i = is.read()) != -1) {
+				  out.write(i);
+				}
+				return;
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+      t.merge(new VelocityContext(), resp.getWriter());
+  	}
+  	else {
+	    resp.setContentType("text/html");
+	    try {
+				writeStats(resp.getWriter());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+  	}
   }
 
   void writeStats(Writer w) throws IOException {
-    w.append("<html><head><title>Avro RPC Stats</title></head>");
-    w.append("<body><h1>Avro RPC Stats</h1>");
-
-    w.append("<h2>Active RPCs</h2>");
-    w.append("<ol>");
-    for (Entry<RPCContext, Stopwatch> rpc : this.statsPlugin.activeRpcs.entrySet()) {
-      writeActiveRpc(w, rpc.getKey(), rpc.getValue());
+    VelocityContext context = new VelocityContext();
+    context.put("title", "PAGE TITLE"); 
+    
+    ArrayList<String> rpcs = new ArrayList<String>();
+    ArrayList<String> methods = new ArrayList<String>();
+    for (Entry<RPCContext, Stopwatch> rpc : 
+    	   this.statsPlugin.activeRpcs.entrySet()) {
+      rpcs.add(renderActiveRpc(rpc.getKey(), rpc.getValue()));
     }
-    w.append("</ol>");
-
-    w.append("<h2>Per-method Timing</h2>");
+    
+    // Get set of all seen messages
+    Set<Message> keys = null;
     synchronized(this.statsPlugin.methodTimings) {
-      for (Entry<Message, FloatHistogram<?>> e :
-        this.statsPlugin.methodTimings.entrySet()) {
-        writeMethod(w, e.getKey(), e.getValue());
-      }
+    	 keys = this.statsPlugin.methodTimings.keySet();
     }
-    w.append("</body></html>");
+    
+    for (Message m: keys) {
+    	methods.add(renderMethod(m));
+    }
+    
+    context.put("methodDetails", methods);
+    context.put("inFlightRpcs", rpcs);
+    
+    SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
+    context.put("currTime", formatter.format(new Date()));
+    context.put("startupTime", formatter.format(statsPlugin.startupTime));
+    
+    Template t;
+    try {
+      t = ve.getTemplate("org/apache/avro/ipc/stats/templates/statsview.vm");
+    } catch (ResourceNotFoundException e) {
+      throw new IOException();
+    } catch (ParseErrorException e) {
+      throw new IOException();
+    } catch (Exception e) {
+      throw new IOException();
+    }
+    t.merge(context, w);
+   
   }
 
-  private void writeActiveRpc(Writer w, RPCContext rpc, Stopwatch stopwatch) throws IOException {
-    w.append("<li>").append(rpc.getMessage().getName()).append(": ");
-    w.append(formatMillis(StatsPlugin.nanosToMillis(stopwatch.elapsedNanos())));
-    w.append("</li>");
+  private String renderActiveRpc(RPCContext rpc, Stopwatch stopwatch) 
+      throws IOException {
+  	String out = new String();
+    out += rpc.getMessage().getName() + ": " + 
+        formatMillis(StatsPlugin.nanosToMillis(stopwatch.elapsedNanos()));
+    return out;
   }
 
-  private void writeMethod(Writer w, Message message, FloatHistogram<?> hist) throws IOException {
-    w.append("<h3>").append(message.getName()).append("</h3>");
-    w.append("<p>Number of calls: ");
-    w.append(Integer.toString(hist.getCount()));
-    w.append("</p><p>Average Duration: ");
-    w.append(formatMillis(hist.getMean()));
-    w.append("</p>");
-    w.append("</p><p>Std Dev: ");
-    w.append(formatMillis(hist.getUnbiasedStdDev()));
-    w.append("</p>");
-
-    w.append("<dl>");
-
-    for (Histogram.Entry<?> e : hist.entries()) {
-      w.append("<dt>");
-      w.append(e.bucket.toString());
-      w.append("</dt>");
-      w.append("<dd>").append(Integer.toString(e.count)).append("</dd>");
-      w.append("</dt>");
+  private String renderMethod(Message message) 
+      throws IOException {
+  	String out = new String();
+    out += "<h4>" + message.getName() + "</h4>";
+  	out += "<table width='100%'><tr>";
+  	synchronized(this.statsPlugin.methodTimings) {
+  	  out += "<td>";
+      FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
+      out += "<p>Number of calls: " + Integer.toString(hist.getCount()) + "<br>";
+      out += "Average Duration: " + hist.getMean() + "<br>";
+      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
+      out += "\n<script>\n";
+      out += "makeBarChart(" + 
+        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
+        getBucketLabels()).toArray()) 
+        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
+      
+      out += "</script>\n";
+      out += "</td>";
+  	}
+   	
+    synchronized(this.statsPlugin.receivePayloads) {
+      out += "<td>";
+      IntegerHistogram<?> hist = this.statsPlugin.receivePayloads.get(message);
+      out += "<p>Number of receives: " + Integer.toString(hist.getCount()) + "<br>";
+      out += "Average Payload: " + hist.getMean() + "<br>";
+      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
+      out += "\n<script>\n";
+      out += "makeBarChart(" + 
+        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
+        getBucketLabels()).toArray()) 
+        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
+      out += "</script>\n";
+      out += "</td>";
+  	}
+   	
+    synchronized(this.statsPlugin.sendPayloads) {
+      out += "<td>";
+      IntegerHistogram<?> hist = this.statsPlugin.sendPayloads.get(message);
+      out += "<p>Number of sends: " + Integer.toString(hist.getCount()) + "<br>";
+      out += "Average Payload: " + hist.getMean() + "<br> ";
+      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
+      out += "\n<script>\n";
+      out += "makeBarChart(" + 
+        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
+        getBucketLabels()).toArray()) 
+        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
+      out += "</script>\n";
+      out += "</td>";
     }
-    w.append("</dl>");
+    out += "</tr></table>";
+    
+    return out;
   }
 
   private CharSequence formatMillis(float millis) {

@@ -17,8 +17,11 @@
  */
 package org.apache.avro.ipc.stats;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 
@@ -57,6 +60,17 @@ class Histogram<B, T> {
      * is consistent with the segment numbers.
      */
     Iterator<B> getBuckets();
+    
+    /**
+     * Returns a List of bucket boundries. Useful for printing
+     * segmenters.
+     */
+    List<String> getBoundryLabels();
+    
+    /**
+     * Returns the bucket lables as an array;
+     */
+    List<String> getBucketLabels();
   }
 
   public static class SegmenterException extends RuntimeException {
@@ -95,7 +109,27 @@ class Histogram<B, T> {
     private String rangeAsString(T a, T b) {
       return String.format("[%s,%s)", a, b == null ? "infinity" : b);
     }
-
+    
+    @Override
+    public ArrayList<String> getBoundryLabels() {
+      ArrayList<String> outArray = new ArrayList<String>(index.keySet().size());
+      for (T obj: index.keySet()) {
+        outArray.add(obj.toString());
+      }
+      return outArray;
+    }
+    
+    @Override
+    public ArrayList<String> getBucketLabels() {
+      ArrayList<String> outArray = new ArrayList<String>(index.keySet().size());
+      Iterator<String> bucketsIt = this.getBuckets();
+      do {
+        outArray.add(bucketsIt.next());
+      } while (bucketsIt.hasNext());
+      outArray.add(bucketsIt.next());
+      return outArray;
+    }
+    
     @Override
     public Iterator<String> getBuckets() {
       return new Iterator<String>() {
@@ -144,11 +178,16 @@ class Histogram<B, T> {
   public int[] getHistogram() {
     return counts;
   }
+  
+  public Segmenter<B, T> getSegmenter() {
+    return this.segmenter;
+  }
 
   /** Returns the total count of entries. */
   public int getCount() {
     return totalCount;
   }
+  
 
   public String toString() {
     StringBuilder sb = new StringBuilder();
