@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 /** Utility to collect data written to an {@link OutputStream} in {@link
@@ -30,22 +31,22 @@ import java.util.List;
 public class ByteBufferOutputStream extends OutputStream {
   public static final int BUFFER_SIZE = 8192;
 
-  private List<ByteBuffer> buffers;
+  private LinkedList<ByteBuffer> buffers;
 
   public ByteBufferOutputStream() {
     reset();
   }
 
   /** Returns all data written and resets the stream to be empty. */
-  public List<ByteBuffer> getBufferList() {
-    List<ByteBuffer> result = buffers;
+  public LinkedList<ByteBuffer> getBufferList() {
+    LinkedList<ByteBuffer> result = buffers;
     reset();
     for (ByteBuffer buffer : result) buffer.flip();
     return result;
   }
 
   public void reset() {
-    buffers = new ArrayList<ByteBuffer>(1);
+    buffers = new LinkedList<ByteBuffer>();
     buffers.add(ByteBuffer.allocate(BUFFER_SIZE));
   }
 

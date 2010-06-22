@@ -46,7 +46,30 @@ public class TestHistogram {
     assertArrayEquals(new int[] { 1, 1, 2, 4, 8, 4 }, h.getHistogram());
 
     assertEquals("[0,1)=1;[1,2)=1;[2,4)=2;[4,8)=4;[8,16)=8;[16,infinity)=4", h.toString());
+    
+    String[] correctBucketLabels = {
+        "[0,1)", "[1,2)", "[2,4)", "[4,8)", "[8,16)", "[16,infinity)"};
+    
+    List<String> labels = h.getSegmenter().getBucketLabels();
+    
+    assertEquals(correctBucketLabels.length, labels.size());
+    if (labels.size() == correctBucketLabels.length) {
+      for (int i = 0; i < labels.size(); i++) {
+        assertEquals(correctBucketLabels[i], labels.get(i));
+      }
+    }
 
+    String[] correctBoundryLabels = {
+        "0", "1", "2", "4", "8", "16"};
+    List<String> boundryLabels = h.getSegmenter().getBoundryLabels();
+    
+    assertEquals(correctBoundryLabels.length, boundryLabels.size());
+    if (boundryLabels.size() == correctBoundryLabels.length) {
+      for (int i = 0; i < boundryLabels.size(); i++) {
+        assertEquals(correctBoundryLabels[i], boundryLabels.get(i));
+      }
+    }
+    
     List<Entry<String>> entries = new ArrayList<Entry<String>>();
     for (Entry<String> entry : h.entries()) {
       entries.add(entry);
@@ -71,12 +94,21 @@ public class TestHistogram {
     public Iterator<String> getBuckets() {
       return Arrays.asList("X").iterator();
     }
+    
+    public List<String> getBoundryLabels() {
+      return Arrays.asList("X");
+    }
+    
+    public List<String> getBucketLabels() {
+      return Arrays.asList("X");
+    }
 
     @Override
     public int segment(Float value) { return 0; }
 
     @Override
     public int size() { return 1; }
+
   }
 
   @Test

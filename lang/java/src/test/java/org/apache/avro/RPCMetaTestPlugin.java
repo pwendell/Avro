@@ -97,16 +97,9 @@ public final class RPCMetaTestPlugin extends RPCPlugin {
   }
   
   @Override
-  public void preClientSendRequest(RPCContext context) { 
+  public void clientSendRequest(RPCContext context) { 
     ByteBuffer buf = ByteBuffer.wrap("ap".getBytes());
     context.requestCallMeta().put(key, buf);
-    Assert.assertNotNull(context.getMessage());
-    Assert.assertNull(context.getRequestPayload());
-    Assert.assertNull(context.getResponsePayload());
-  }
-  
-  @Override
-  public void postClientSendRequest(RPCContext context) { 
     Assert.assertNotNull(context.getMessage());
     Assert.assertNotNull(context.getRequestPayload());
     Assert.assertNull(context.getResponsePayload());
@@ -137,12 +130,12 @@ public final class RPCMetaTestPlugin extends RPCPlugin {
   }
   
   @Override
-  public void preServerSendResponse(RPCContext context) {
+  public void serverSendResponse(RPCContext context) {
     Assert.assertNotNull(context.requestCallMeta());
     Assert.assertNotNull(context.responseCallMeta());
 
     Assert.assertNotNull(context.getRequestPayload());
-    Assert.assertNull(context.getResponsePayload());
+    Assert.assertNotNull(context.getResponsePayload());
     
     if (!context.requestCallMeta().containsKey(key)) return;
     
@@ -157,13 +150,6 @@ public final class RPCMetaTestPlugin extends RPCPlugin {
     buf = ByteBuffer.wrap((partialstr + "c").getBytes());
     Assert.assertTrue(buf.remaining() > 0);
     context.responseCallMeta().put(key, buf);
-  }
-  
-  public void postServerSendResponse(RPCContext context) {
-    Assert.assertNotNull(context.requestCallMeta());
-    Assert.assertNotNull(context.responseCallMeta());
-    Assert.assertNotNull(context.getRequestPayload());
-    Assert.assertNotNull(context.getResponsePayload());
   }
   
   @Override

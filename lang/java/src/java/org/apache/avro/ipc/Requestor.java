@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -92,43 +93,41 @@ public abstract class Requestor {
     do {
       ByteBufferOutputStream bbo = new ByteBufferOutputStream();
       Encoder out = new BinaryEncoder(bbo);
-
-      writeHandshake(out);                      // prepend handshake if needed
-
+      
+      // We encode request payload and handshake/meta-data separately to pass
+      // the former to any plugins.
+      
       // use local protocol to write request
       m = getLocal().getMessages().get(messageName);
       if (m == null)
         throw new AvroRuntimeException("Not a local message: "+messageName);
       context.setMessage(m);
+    
+      writeRequest(m.getRequest(), request, out); // write request payload       
+      LinkedList<ByteBuffer> payloadBBList = bbo.getBufferList();
       
+      context.setRequestPayload(payloadBBList);
       // get meta-data from plugins
       for (RPCPlugin plugin : rpcMetaPlugins) {
-        plugin.preClientSendRequest(context);
+        plugin.clientSendRequest(context);
       }
       
+      writeHandshake(out);                      // prepend handshake if needed
       META_WRITER.write(context.requestCallMeta(), out);
       out.writeString(m.getName());               // write message name
-      writeRequest(m.getRequest(), request, out); // write request payload
+      LinkedList<ByteBuffer> prefixBBList = bbo.getBufferList();
       
-      List<ByteBuffer> bbList = bbo.getBufferList();
-      context.setRequestPayload(bbList);
+      
+      payloadBBList.addAll(0, prefixBBList);
+      //context.setRequestPayload(payloadBBList);
       
       if (m.isOneWay() && t.isConnected()) {      // send one-way message
-        t.writeBuffers(bbList);
-        
-        // Call plugins again now that request has been sent
-        for (RPCPlugin plugin : rpcMetaPlugins) {
-          plugin.postClientSendRequest(context);
-        }
+        t.writeBuffers(payloadBBList);
         
         return null;
       } else {                                    // two-way message
-        List<ByteBuffer> response = t.transceive(bbList);
+        List<ByteBuffer> response = t.transceive(payloadBBList);
         
-        // Call plugins again now that request has been sent
-        for (RPCPlugin plugin : rpcMetaPlugins) {
-          plugin.postClientSendRequest(context);
-        }
         
         context.setResponsePayload(response);
         ByteBufferInputStream bbi = new ByteBufferInputStream(response);
