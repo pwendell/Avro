@@ -19,6 +19,7 @@ package org.apache.avro.ipc.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,9 +36,13 @@ import java.util.TreeMap;
  * @param <T> Type of value
  */
 class Histogram<B, T> {
+  public static final int MAX_HISTORY_SIZE = 20; // How many recent additions
+                                                 // to track.
+  
   private Segmenter<B, T> segmenter;
   private int[] counts;
   protected int totalCount;
+  private LinkedList<T> recentAdditions;
 
   /**
    * Interface to determine which bucket to place a value in.
@@ -151,7 +156,6 @@ class Histogram<B, T> {
         @Override
         public void remove() {
           throw new UnsupportedOperationException();
-
         }
       };
     }
@@ -163,6 +167,7 @@ class Histogram<B, T> {
   public Histogram(Segmenter<B, T> segmenter) {
     this.segmenter = segmenter;
     this.counts = new int[segmenter.size()];
+    this.recentAdditions = new LinkedList<T>();
   }
 
   /** Tallies a value in the histogram. */
@@ -170,6 +175,10 @@ class Histogram<B, T> {
     int i = segmenter.segment(value);
     counts[i]++;
     totalCount++;
+    if (this.recentAdditions.size() > Histogram.MAX_HISTORY_SIZE) {
+      this.recentAdditions.pop();
+    }
+    this.recentAdditions.add(value);
   }
 
   /**
@@ -179,8 +188,18 @@ class Histogram<B, T> {
     return counts;
   }
   
+  /**
+   * Returns the underlying segmenter used for this histogram.
+   */
   public Segmenter<B, T> getSegmenter() {
     return this.segmenter;
+  }
+  
+  /**
+   * Returns values recently added to this histogram.
+   */
+  public List<T> getRecentAdditions() {
+    return this.recentAdditions;
   }
 
   /** Returns the total count of entries. */
