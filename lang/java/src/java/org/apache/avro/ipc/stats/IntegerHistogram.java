@@ -18,7 +18,7 @@
 package org.apache.avro.ipc.stats;
 
 /**
- * Specific implementation of histogram for floats,
+ * Specific implementation of histogram for integers,
  * which also keeps track of basic summary statistics.
  * @param <B>
  */
