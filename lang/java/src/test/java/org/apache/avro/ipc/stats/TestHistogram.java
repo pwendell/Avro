@@ -19,6 +19,7 @@ package org.apache.avro.ipc.stats;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,6 +78,13 @@ public class TestHistogram {
     assertEquals("[0,1)", entries.get(0).bucket);
     assertEquals(4, entries.get(5).count);
     assertEquals(6, entries.size());
+    
+    h.add(1010);
+    h.add(9191);
+    List<Integer> recent = h.getRecentAdditions();
+    assertTrue(recent.contains(1010));
+    assertTrue(recent.contains(9191));
+    
   }
 
   @Test(expected=Histogram.SegmenterException.class)
