@@ -125,8 +125,8 @@ public class TestStatsPluginAndServlet {
     statsPlugin.serverSendResponse(context1);
     t.passTime(900*MS); // second takes 900ms
     statsPlugin.serverSendResponse(context2);
-
     r = generateServletResponse(statsPlugin);
+    System.out.println(r);
     assertTrue(r.contains("Average Duration: 500ms"));
   }
 
@@ -138,10 +138,8 @@ public class TestStatsPluginAndServlet {
     Transceiver t = new LocalTransceiver(r);
     makeRequest(t);
     
-    // Test to be filled in once payload metrics are generated
     String resp = generateServletResponse(statsPlugin);
-    System.out.println(resp);
-    //assertTrue(resp.contains("Average Payload: 4"));
+    assertTrue(resp.contains("Average Payload: 2.0"));
  
   }
   

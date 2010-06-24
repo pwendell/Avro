@@ -73,26 +73,30 @@ public class StatsServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
+    // If we have a request for static media files, just pass the file through
+    // directly. Otherwise, go through Velocity.
   	if (req.getRequestURI().endsWith(".js") || 
   	    req.getRequestURI().endsWith(".css")) {
-  		Template t = null;
   		String[] queryParts = req.getRequestURI().split("/");
-  		String jsFileName = queryParts[queryParts.length - 1];
-      resp.setContentType("text/javascript");
+  		String mediaFileName = queryParts[queryParts.length - 1];
+  		if (req.getRequestURI().endsWith(".js")) {
+  		  resp.setContentType("text/javascript");
+  		} 
+  		else if (req.getRequestURI().endsWith(".css")) {
+  		  resp.setContentType("text/css");
+  		}
 			try {
 			  InputStream is = getClass().getClassLoader().getResourceAsStream(
-			      "org/apache/avro/ipc/stats/templates/" + jsFileName);
+			      "org/apache/avro/ipc/stats/templates/" + mediaFileName);
 				PrintWriter out = resp.getWriter();
 				int i;
 				while ((i = is.read()) != -1) {
 				  out.write(i);
 				}
 				return;
-				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-      t.merge(new VelocityContext(), resp.getWriter());
   	}
   	else {
 	    resp.setContentType("text/html");
@@ -106,10 +110,10 @@ public class StatsServlet extends HttpServlet {
 
   void writeStats(Writer w) throws IOException {
     VelocityContext context = new VelocityContext();
-    context.put("title", "PAGE TITLE"); 
+    context.put("title", "Avro RPC Stats"); 
     
-    ArrayList<String> rpcs = new ArrayList<String>();
-    ArrayList<String> methods = new ArrayList<String>();
+    ArrayList<String> rpcs = new ArrayList<String>();  // in flight rpcs
+    ArrayList<String> methods = new ArrayList<String>();  // historical data
     for (Entry<RPCContext, Stopwatch> rpc : 
     	   this.statsPlugin.activeRpcs.entrySet()) {
       rpcs.add(renderActiveRpc(rpc.getKey(), rpc.getValue()));
@@ -125,8 +129,8 @@ public class StatsServlet extends HttpServlet {
     	methods.add(renderMethod(m));
     }
     
-    context.put("methodDetails", methods);
     context.put("inFlightRpcs", rpcs);
+    context.put("methodDetails", methods);
     
     SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
     context.put("currTime", formatter.format(new Date()));
@@ -143,7 +147,6 @@ public class StatsServlet extends HttpServlet {
       throw new IOException();
     }
     t.merge(context, w);
-   
   }
 
   private String renderActiveRpc(RPCContext rpc, Stopwatch stopwatch) 
@@ -156,14 +159,16 @@ public class StatsServlet extends HttpServlet {
 
   private String renderMethod(Message message) 
       throws IOException {
+    // Print out a nice HTML table with stats for this message
   	String out = new String();
     out += "<h4>" + message.getName() + "</h4>";
   	out += "<table width='100%'><tr>";
   	synchronized(this.statsPlugin.methodTimings) {
   	  out += "<td>";
       FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
-      out += "<p>Number of calls: " + Integer.toString(hist.getCount()) + "<br>";
-      out += "Average Duration: " + hist.getMean() + "<br>";
+      out += "<p>Number of calls: " + Integer.toString(hist.getCount()); 
+      out += "<br>";
+      out += "Average Duration: " + hist.getMean() + "ms" + "<br>";
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
       out += "makeBarChart(" + 
@@ -171,15 +176,18 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      
-      out += "</script>\n";
+      out += "</script><p><br>Recent Calls</p><script>\n";
+      out += "makeDotChart(";
+      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
+      out += ");</script>";
       out += "</td>";
   	}
    	
     synchronized(this.statsPlugin.receivePayloads) {
       out += "<td>";
       IntegerHistogram<?> hist = this.statsPlugin.receivePayloads.get(message);
-      out += "<p>Number of receives: " + Integer.toString(hist.getCount()) + "<br>";
+      out += "<p>Number of receives: " + Integer.toString(hist.getCount());
+      out += "<br>";
       out += "Average Payload: " + hist.getMean() + "<br>";
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
@@ -188,14 +196,18 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script>\n";
+      out += "</script><p><br>Recent Calls</p><script>\n";
+      out += "makeDotChart(";
+      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
+      out += ");</script>";
       out += "</td>";
   	}
    	
     synchronized(this.statsPlugin.sendPayloads) {
       out += "<td>";
       IntegerHistogram<?> hist = this.statsPlugin.sendPayloads.get(message);
-      out += "<p>Number of sends: " + Integer.toString(hist.getCount()) + "<br>";
+      out += "<p>Number of sends: " + Integer.toString(hist.getCount());
+      out += "<br>";
       out += "Average Payload: " + hist.getMean() + "<br> ";
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
@@ -204,7 +216,10 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script>\n";
+      out += "</script><p>Recent Calls</p><script>\n";
+      out += "makeDotChart(";
+      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
+      out += ");</script>";
       out += "</td>";
     }
     out += "</tr></table>";
