@@ -167,7 +167,7 @@ public class StatsServlet extends HttpServlet {
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
       out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
@@ -184,7 +184,7 @@ public class StatsServlet extends HttpServlet {
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
       out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
@@ -200,7 +200,7 @@ public class StatsServlet extends HttpServlet {
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
       out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundryLabels().toArray()) 
+        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";

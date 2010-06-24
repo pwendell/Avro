@@ -27,7 +27,8 @@ import java.util.TreeMap;
 
 /**
  * Represents a histogram of values.  This class uses a {@link Segmenter}
- * to determine which bucket to place a given value into.
+ * to determine which bucket to place a given value into. Also stores the last
+ * MAX_HISTORY_SIZE entries which have been added to this histogram, in order.
  *
  * Note that Histogram, by itself, is not synchronized.
  * @param <B> Bucket type.  Often String, since buckets are typically
@@ -35,8 +36,10 @@ import java.util.TreeMap;
  * @param <T> Type of value
  */
 class Histogram<B, T> {
-  public static final int MAX_HISTORY_SIZE = 20; // How many recent additions
-                                                 // to track.
+  /**
+   * How many recent additions we should track.
+   */
+  public static final int MAX_HISTORY_SIZE = 20; 
   
   private Segmenter<B, T> segmenter;
   private int[] counts;
@@ -66,13 +69,13 @@ class Histogram<B, T> {
     Iterator<B> getBuckets();
     
     /**
-     * Returns a List of bucket boundries. Useful for printing
+     * Returns a List of bucket boundaries. Useful for printing
      * segmenters.
      */
-    List<String> getBoundryLabels();
+    List<String> getBoundaryLabels();
     
     /**
-     * Returns the bucket lables as an array;
+     * Returns the bucket labels as an array;
      */
     List<String> getBucketLabels();
   }
@@ -115,7 +118,7 @@ class Histogram<B, T> {
     }
     
     @Override
-    public ArrayList<String> getBoundryLabels() {
+    public ArrayList<String> getBoundaryLabels() {
       ArrayList<String> outArray = new ArrayList<String>(index.keySet().size());
       for (T obj: index.keySet()) {
         outArray.add(obj.toString());
@@ -175,9 +178,9 @@ class Histogram<B, T> {
     counts[i]++;
     totalCount++;
     if (this.recentAdditions.size() > Histogram.MAX_HISTORY_SIZE) {
-      this.recentAdditions.pop();
+      this.recentAdditions.pollLast();
     }
-    this.recentAdditions.add(value);
+    this.recentAdditions.push(value);
   }
 
   /**
@@ -195,7 +198,8 @@ class Histogram<B, T> {
   }
   
   /**
-   * Returns values recently added to this histogram.
+   * Returns values recently added to this histogram. These are in reverse
+   * order (most recent first).
    */
   public List<T> getRecentAdditions() {
     return this.recentAdditions;

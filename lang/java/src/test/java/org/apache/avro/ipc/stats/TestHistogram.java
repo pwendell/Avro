@@ -62,7 +62,7 @@ public class TestHistogram {
 
     String[] correctBoundryLabels = {
         "0", "1", "2", "4", "8", "16"};
-    List<String> boundryLabels = h.getSegmenter().getBoundryLabels();
+    List<String> boundryLabels = h.getSegmenter().getBoundaryLabels();
     
     assertEquals(correctBoundryLabels.length, boundryLabels.size());
     if (boundryLabels.size() == correctBoundryLabels.length) {
@@ -103,7 +103,7 @@ public class TestHistogram {
       return Arrays.asList("X").iterator();
     }
     
-    public List<String> getBoundryLabels() {
+    public List<String> getBoundaryLabels() {
       return Arrays.asList("X");
     }
     
