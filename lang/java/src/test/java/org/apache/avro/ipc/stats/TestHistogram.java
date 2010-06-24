@@ -51,8 +51,17 @@ public class TestHistogram {
     String[] correctBucketLabels = {
         "[0,1)", "[1,2)", "[2,4)", "[4,8)", "[8,16)", "[16,infinity)"};
     
-    List<String> labels = h.getSegmenter().getBucketLabels();
+    // test bucket iterator
+    int pos = 0;
+    Iterator<String> it = h.getSegmenter().getBuckets();
+    while (it.hasNext()) {
+      assertEquals(correctBucketLabels[pos], it.next());
+      pos = pos + 1;
+    }
+    assertEquals(correctBucketLabels.length, pos);
     
+    List<String> labels = h.getSegmenter().getBucketLabels();
+    System.out.println(labels);
     assertEquals(correctBucketLabels.length, labels.size());
     if (labels.size() == correctBucketLabels.length) {
       for (int i = 0; i < labels.size(); i++) {

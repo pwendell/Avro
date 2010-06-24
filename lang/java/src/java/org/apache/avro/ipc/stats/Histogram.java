@@ -130,10 +130,9 @@ class Histogram<B, T> {
     public ArrayList<String> getBucketLabels() {
       ArrayList<String> outArray = new ArrayList<String>(index.keySet().size());
       Iterator<String> bucketsIt = this.getBuckets();
-      do {
+      while (bucketsIt.hasNext()) {
         outArray.add(bucketsIt.next());
-      } while (bucketsIt.hasNext());
-      outArray.add(bucketsIt.next());
+      }
       return outArray;
     }
     
@@ -142,14 +141,16 @@ class Histogram<B, T> {
       return new Iterator<String>() {
         Iterator<T> it = index.keySet().iterator();
         T cur = it.next(); // there's always at least one element
-
+        int pos = 0;
+        
         @Override
         public boolean hasNext() {
-          return it.hasNext();
+          return (pos < index.keySet().size());
         }
 
         @Override
         public String next() {
+          pos = pos + 1;
           T left = cur;
           cur = it.hasNext() ? it.next() : null;
           return rangeAsString(left, cur);
