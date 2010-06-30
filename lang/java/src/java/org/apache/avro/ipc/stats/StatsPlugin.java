@@ -35,7 +35,8 @@ import org.apache.avro.ipc.stats.Stopwatch.Ticks;
 
 /**
  * Collects count and latency statistics about RPC calls.  Keeps
- * data for every method.
+ * data for every method. Can be added to a Requestor (client)
+ * or Responder (server). 
  *
  * This uses milliseconds as the standard unit of measure
  * throughout the class, stored in floats.
@@ -145,7 +146,7 @@ public class StatsPlugin extends RPCPlugin {
       h.add(getPayloadSize(context.getRequestPayload()));
     }
   }
-
+  
   @Override
   public void serverSendResponse(RPCContext context) {
     Stopwatch t = this.activeRpcs.remove(context);
@@ -161,7 +162,39 @@ public class StatsPlugin extends RPCPlugin {
       h.add(getPayloadSize(context.getResponsePayload()));
     }
   }
-
+  
+  @Override
+  public void clientSendRequest(RPCContext context) {
+    Stopwatch t = new Stopwatch(ticks);
+    t.start();
+    this.activeRpcs.put(context, t);
+    
+    synchronized(sendPayloads) {
+      IntegerHistogram<?> h = sendPayloads.get(context.getMessage());
+      if (h == null) {
+        h = createNewIntegerHistogram();
+       sendPayloads.put(context.getMessage(), h);
+      }
+      h.add(getPayloadSize(context.getRequestPayload()));
+    }
+  }
+  
+  @Override
+  public void clientReceiveResponse(RPCContext context) {
+    Stopwatch t = this.activeRpcs.remove(context);
+    t.stop();
+    publish(context, t);
+    
+    synchronized(receivePayloads) {
+      IntegerHistogram<?> h = receivePayloads.get(context.getMessage());
+      if (h == null) {
+        h = createNewIntegerHistogram();
+        receivePayloads.put(context.getMessage(), h);
+      }
+      h.add(getPayloadSize(context.getRequestPayload()));
+    }
+  }
+  
   /** Adds timing to the histograms. */
   private void publish(RPCContext context, Stopwatch t) {
     Message message = context.getMessage();

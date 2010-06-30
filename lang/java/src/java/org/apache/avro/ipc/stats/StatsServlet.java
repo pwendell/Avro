@@ -57,10 +57,11 @@ public class StatsServlet extends HttpServlet {
   public StatsServlet(StatsPlugin statsPlugin) {
     this.statsPlugin = statsPlugin;
     this.ve = new VelocityEngine();
-    ve.addProperty("resource.loader", "file");
-    ve.addProperty("file.resource.loader.path",
-    		getClass().getProtectionDomain().getCodeSource().
-    		getLocation().getPath());
+    ve.addProperty("resource.loader", "class");
+    
+    // Have velocity load based on existing classpath
+    ve.addProperty("class.resource.loader.class",
+        "org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader");
   }
 
   public static List<String> escapeStringArray(List<String> input) {
@@ -176,7 +177,7 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p><br>Recent Calls</p><script>\n";
+      out += "</script><p><br>Recent Durations</p><script>\n";
       out += "makeDotChart(";
       out += Arrays.toString(hist.getRecentAdditions().toArray()); 
       out += ");</script>";
@@ -196,7 +197,7 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p><br>Recent Calls</p><script>\n";
+      out += "</script><p><br>Recent Send Payloads</p><script>\n";
       out += "makeDotChart(";
       out += Arrays.toString(hist.getRecentAdditions().toArray()); 
       out += ");</script>";
@@ -216,7 +217,7 @@ public class StatsServlet extends HttpServlet {
         + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
         getBucketLabels()).toArray()) 
         + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p>Recent Calls</p><script>\n";
+      out += "</script><p>Recent Receive Payloads</p><script>\n";
       out += "makeDotChart(";
       out += Arrays.toString(hist.getRecentAdditions().toArray()); 
       out += ");</script>";
