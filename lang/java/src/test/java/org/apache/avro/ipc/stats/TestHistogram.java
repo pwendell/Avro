@@ -61,7 +61,6 @@ public class TestHistogram {
     assertEquals(correctBucketLabels.length, pos);
     
     List<String> labels = h.getSegmenter().getBucketLabels();
-    System.out.println(labels);
     assertEquals(correctBucketLabels.length, labels.size());
     if (labels.size() == correctBucketLabels.length) {
       for (int i = 0; i < labels.size(); i++) {
