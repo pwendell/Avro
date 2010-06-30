@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -31,20 +30,36 @@ import java.util.List;
 public class ByteBufferOutputStream extends OutputStream {
   public static final int BUFFER_SIZE = 8192;
 
-  private LinkedList<ByteBuffer> buffers;
+  private List<ByteBuffer> buffers;
 
   public ByteBufferOutputStream() {
     reset();
   }
 
   /** Returns all data written and resets the stream to be empty. */
-  public LinkedList<ByteBuffer> getBufferList() {
-    LinkedList<ByteBuffer> result = buffers;
+  public List<ByteBuffer> getBufferList() {
+    List<ByteBuffer> result = buffers;
     reset();
     for (ByteBuffer buffer : result) buffer.flip();
     return result;
   }
 
+  /** Prepend a list of ByteBuffers to this stream. */
+  public void prepend(List<ByteBuffer> lists) {
+    for (ByteBuffer buffer: lists) {
+      buffer.position(buffer.limit());
+    }
+    buffers.addAll(0, lists);
+  }
+  
+  /** Append a list of ByteBuffers to this stream. */
+  public void append(List<ByteBuffer> lists) {
+    for (ByteBuffer buffer: lists) {
+      buffer.position(buffer.limit());
+    }
+    buffers.addAll(lists);
+  }
+  
   public void reset() {
     buffers = new LinkedList<ByteBuffer>();
     buffers.add(ByteBuffer.allocate(BUFFER_SIZE));

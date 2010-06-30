@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -94,41 +93,34 @@ public abstract class Requestor {
       ByteBufferOutputStream bbo = new ByteBufferOutputStream();
       Encoder out = new BinaryEncoder(bbo);
       
-      // We encode request payload and handshake/meta-data separately to pass
-      // the former to any plugins.
-      
       // use local protocol to write request
       m = getLocal().getMessages().get(messageName);
       if (m == null)
         throw new AvroRuntimeException("Not a local message: "+messageName);
       context.setMessage(m);
     
-      writeRequest(m.getRequest(), request, out); // write request payload       
-      LinkedList<ByteBuffer> payloadBBList = bbo.getBufferList();
+      writeRequest(m.getRequest(), request, out); // write request payload
+      List<ByteBuffer> payload = bbo.getBufferList();
       
-      context.setRequestPayload(payloadBBList);
-      // get meta-data from plugins
+      context.setRequestPayload(payload);
       for (RPCPlugin plugin : rpcMetaPlugins) {
-        plugin.clientSendRequest(context);
+        plugin.clientSendRequest(context);        // get meta-data from plugins
       }
       
-      writeHandshake(out);                      // prepend handshake if needed
+      writeHandshake(out);                       // prepend handshake if needed
       META_WRITER.write(context.requestCallMeta(), out);
       out.writeString(m.getName());               // write message name
-      LinkedList<ByteBuffer> prefixBBList = bbo.getBufferList();
       
+      bbo.append(payload);
       
-      payloadBBList.addAll(0, prefixBBList);
-      //context.setRequestPayload(payloadBBList);
-      
+      List<ByteBuffer> requestBytes = bbo.getBufferList();
+
       if (m.isOneWay() && t.isConnected()) {      // send one-way message
-        t.writeBuffers(payloadBBList);
+        t.writeBuffers(requestBytes);
         
         return null;
       } else {                                    // two-way message
-        List<ByteBuffer> response = t.transceive(payloadBBList);
-        
-        
+        List<ByteBuffer> response = t.transceive(requestBytes);
         context.setResponsePayload(response);
         ByteBufferInputStream bbi = new ByteBufferInputStream(response);
         in = DecoderFactory.defaultFactory().createBinaryDecoder(bbi, in);

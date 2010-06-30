@@ -154,24 +154,42 @@ public class RPCContext {
     return error != null;
   }
   
+  /** Sets the {@link Message} corresponding to this RPC */
   public void setMessage(Message message) {
     this.message = message;    
   }
   
+  /** Returns the {@link Message} corresponding to this RPC
+   * @return this RPC's {@link Message} 
+   */
   public Message getMessage() { return message; }
   
+  /** Sets the serialized payload of the request in this RPC. Will
+   * not include handshake or meta-data. */
   public void setRequestPayload(List<ByteBuffer> payload) {
     this.requestPayload = payload;
   }
  
+  /** Returns the serialized payload of the request in this RPC. Will
+   * not include handshake or meta-data. If the request payload has not been
+   * set yet, returns null.
+   * 
+   * @return this RPC's request payload.*/
   public List<ByteBuffer> getRequestPayload() {
     return this.requestPayload;
   }
   
+  /** Returns the serialized payload of the response in this RPC. Will
+   * not include handshake or meta-data. If the response payload has not been
+   * set yet, returns null.
+   * 
+   * @return this RPC's response payload.*/
   public List<ByteBuffer> getResponsePayload() {
     return this.responsePayload;
   }
   
+  /** Sets the serialized payload of the response in this RPC. Will
+   * not include handshake or meta-data. */
   public void setResponsePayload(List<ByteBuffer> payload) {
     this.responsePayload = payload;
   }

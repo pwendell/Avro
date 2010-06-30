@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -100,15 +99,14 @@ public abstract class Responder {
     BinaryEncoder out = new BinaryEncoder(bbo);
     Exception error = null;
     RPCContext context = new RPCContext();
-    LinkedList<ByteBuffer> payloadBB = null;
-    LinkedList<ByteBuffer> handshakeBB = null;
-    LinkedList<ByteBuffer> metaBB = null;
+    List<ByteBuffer> payload = null;
+    List<ByteBuffer> handshake = null;
     boolean wasConnected = connection != null && connection.isConnected();
     try {
       Protocol remote = handshake(in, out, connection);
       if (remote == null)                        // handshake failed
         return bbo.getBufferList();
-      handshakeBB = bbo.getBufferList();
+      handshake = bbo.getBufferList();
       
       // read request using remote protocol specification
       context.setRequestCallMeta(META_READER.read(null, in));
@@ -160,21 +158,20 @@ public abstract class Responder {
       writeError(Protocol.SYSTEM_ERRORS, new Utf8(e.toString()), out);
     }
 
-    payloadBB = bbo.getBufferList();
+    payload = bbo.getBufferList();
     
     // Grab meta-data from plugins
-    context.setResponsePayload(payloadBB);
+    context.setResponsePayload(payload);
     for (RPCPlugin plugin : rpcMetaPlugins) {
       plugin.serverSendResponse(context);
     }
     META_WRITER.write(context.responseCallMeta(), out);
-    metaBB = bbo.getBufferList();
     
-    // Prepend meta-data and handshake
-    payloadBB.addAll(0, metaBB);
-    payloadBB.addAll(0, handshakeBB);
-    
-    return payloadBB;
+    // Prepend handshake and append payload
+    bbo.prepend(handshake);
+    bbo.append(payload);
+
+    return bbo.getBufferList();
   }
 
   private SpecificDatumWriter<HandshakeResponse> handshakeWriter =
