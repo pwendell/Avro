@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -68,8 +69,31 @@ public class StatsServlet extends HttpServlet {
     velocityEngine.addProperty("class.resource.loader.class",
         "org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader");
   }
+  
+  /* Helper class to store per-message data which is passed to templates.
+   * 
+   * The template expects a list of charts, each of which is parameterized by
+   * map key-value string attributes. */
+  public class RenderableMessage { // Velocity brakes if not public
+    public String name;
+    public ArrayList<HashMap<String, String>> charts;
+    
+    public RenderableMessage(String name) {
+      this.name = name;
+      this.charts = new ArrayList<HashMap<String, String>>();
+    }
+    
+    public ArrayList<HashMap<String, String>> getCharts() {
+      return this.charts;
+    }
+    
+    public String getname() {
+      return this.name;
+    }
+  }
 
-  /* Surround each string in an array with quotation marks, and escape quotes.
+  /* Surround each string in an array with
+   * quotation marks and escape existing quotes.
    * 
    * This is useful when we have an array of strings that we want to turn into
    * a javascript array declaration. 
@@ -84,41 +108,13 @@ public class StatsServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    // If we have a request for static media files, just pass the file through
-    // directly. Otherwise, go through Velocity.
-  	if (req.getRequestURI().endsWith(".js") || 
-  	    req.getRequestURI().endsWith(".css")) {
-  		String[] queryParts = req.getRequestURI().split("/");
-  		String mediaFileName = queryParts[queryParts.length - 1];
-  		if (req.getRequestURI().endsWith(".js")) {
-  		  resp.setContentType("text/javascript");
-  		} 
-  		else if (req.getRequestURI().endsWith(".css")) {
-  		  resp.setContentType("text/css");
-  		}
-			try {
-			  InputStream is = getClass().getClassLoader().getResourceAsStream(
-			      "org/apache/avro/ipc/stats/templates/" + mediaFileName);
-	      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-	      BufferedWriter out = new BufferedWriter(resp.getWriter());
-	      String line;
-	      while ((line = reader.readLine()) != null) {
-	        out.write(line + System.getProperty("line.separator"));
-	      }
-	      out.flush();
-				return;
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-  	}
-  	else {
-	    resp.setContentType("text/html");
-	    try {
-				writeStats(resp.getWriter());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-  	}
+	  resp.setContentType("text/html");
+	  try {
+		writeStats(resp.getWriter()); 
+	  }
+		catch (Exception e) {
+		  e.printStackTrace();
+		}
   }
 
   void writeStats(Writer w) throws IOException {
@@ -126,7 +122,10 @@ public class StatsServlet extends HttpServlet {
     context.put("title", "Avro RPC Stats"); 
     
     ArrayList<String> rpcs = new ArrayList<String>();  // in flight rpcs
-    ArrayList<String> methods = new ArrayList<String>();  // historical data
+    
+    ArrayList<RenderableMessage> messages = 
+      new ArrayList<RenderableMessage>();
+    
     for (Entry<RPCContext, Stopwatch> rpc : 
     	   this.statsPlugin.activeRpcs.entrySet()) {
       rpcs.add(renderActiveRpc(rpc.getKey(), rpc.getValue()));
@@ -136,14 +135,14 @@ public class StatsServlet extends HttpServlet {
     Set<Message> keys = null;
     synchronized(this.statsPlugin.methodTimings) {
     	 keys = this.statsPlugin.methodTimings.keySet();
-    }
     
-    for (Message m: keys) {
-    	methods.add(renderMethod(m));
+      for (Message m: keys) {
+      	messages.add(renderMethod(m));
+      }
     }
     
     context.put("inFlightRpcs", rpcs);
-    context.put("methodDetails", methods);
+    context.put("messages", messages);
     
     context.put("currTime", formatter.format(new Date()));
     context.put("startupTime", formatter.format(statsPlugin.startupTime));
@@ -170,6 +169,92 @@ public class StatsServlet extends HttpServlet {
     return out;
   }
 
+  
+  private RenderableMessage renderMethod(Message message) {
+    RenderableMessage out = new RenderableMessage(message.getName());
+    
+    synchronized(this.statsPlugin.methodTimings) {
+      FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
+      HashMap<String, String> latencyBar = new HashMap<String, String>();
+      // Fill in chart attributes for velocity
+      latencyBar.put("type", "bar");
+      latencyBar.put("title", "All-Time Latency");
+      latencyBar.put("units", "ms");
+      latencyBar.put("numCalls", Integer.toString(hist.getCount()));
+      latencyBar.put("avg", Float.toString(hist.getMean()));
+      latencyBar.put("stdDev", Float.toString(hist.getUnbiasedStdDev()));
+      latencyBar.put("labelStr", 
+          Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()));
+      latencyBar.put("boundaryStr",
+          Arrays.toString(escapeStringArray(hist.getSegmenter().
+              getBucketLabels()).toArray()));
+      latencyBar.put("dataStr", Arrays.toString(hist.getHistogram())); 
+      out.charts.add(latencyBar);
+      
+      HashMap<String, String> latencyDot = new HashMap<String, String>();
+      latencyDot.put("title", "Latency");
+      latencyDot.put("type", "dot");
+      latencyDot.put("dataStr", 
+          Arrays.toString(hist.getRecentAdditions().toArray()));
+      out.charts.add(latencyDot);
+    }
+    
+    synchronized(this.statsPlugin.sendPayloads) {
+      IntegerHistogram<?> hist = this.statsPlugin.sendPayloads.get(message);
+      HashMap<String, String> latencyBar = new HashMap<String, String>();
+      // Fill in chart attributes for velocity
+      latencyBar.put("type", "bar");
+      latencyBar.put("title", "All-Time Send Payload");
+      latencyBar.put("units", "ms");
+      latencyBar.put("numCalls", Integer.toString(hist.getCount()));
+      latencyBar.put("avg", Float.toString(hist.getMean()));
+      latencyBar.put("stdDev", Float.toString(hist.getUnbiasedStdDev()));
+      latencyBar.put("labelStr", 
+          Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()));
+      latencyBar.put("boundaryStr",
+          Arrays.toString(escapeStringArray(hist.getSegmenter().
+              getBucketLabels()).toArray()));
+      latencyBar.put("dataStr", Arrays.toString(hist.getHistogram())); 
+      out.charts.add(latencyBar);
+      
+      HashMap<String, String> latencyDot = new HashMap<String, String>();
+      latencyDot.put("title", "Send Payload");
+      latencyDot.put("type", "dot");
+      latencyDot.put("dataStr", 
+          Arrays.toString(hist.getRecentAdditions().toArray()));
+      out.charts.add(latencyDot);
+    }
+    
+    synchronized(this.statsPlugin.receivePayloads) {
+      IntegerHistogram<?> hist = this.statsPlugin.receivePayloads.get(message);
+      HashMap<String, String> latencyBar = new HashMap<String, String>();
+      // Fill in chart attributes for velocity
+      latencyBar.put("type", "bar");
+      latencyBar.put("title", "All-Time Receive Payload");
+      latencyBar.put("units", "ms");
+      latencyBar.put("numCalls", Integer.toString(hist.getCount()));
+      latencyBar.put("avg", Float.toString(hist.getMean()));
+      latencyBar.put("stdDev", Float.toString(hist.getUnbiasedStdDev()));
+      latencyBar.put("labelStr", 
+          Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()));
+      latencyBar.put("boundaryStr",
+          Arrays.toString(escapeStringArray(hist.getSegmenter().
+              getBucketLabels()).toArray()));
+      latencyBar.put("dataStr", Arrays.toString(hist.getHistogram())); 
+      out.charts.add(latencyBar);
+      
+      HashMap<String, String> latencyDot = new HashMap<String, String>();
+      latencyDot.put("title", "Recv Payload");
+      latencyDot.put("type", "dot");
+      latencyDot.put("dataStr", 
+          Arrays.toString(hist.getRecentAdditions().toArray()));
+      out.charts.add(latencyDot);
+    }
+    
+    return out;
+  }
+  
+  /*
   private String renderMethod(Message message) 
       throws IOException {
     // Print out a nice HTML table with stats for this message
@@ -179,8 +264,6 @@ public class StatsServlet extends HttpServlet {
   	synchronized(this.statsPlugin.methodTimings) {
   	  out += "<td>";
       FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
-      out += "<p>Number of calls: " + Integer.toString(hist.getCount()); 
-      out += "<br>";
       out += "Average Duration: " + hist.getMean() + "ms" + "<br>";
       out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
       out += "\n<script>\n";
@@ -239,7 +322,7 @@ public class StatsServlet extends HttpServlet {
     
     return out;
   }
-
+*/
   private CharSequence formatMillis(float millis) {
     return String.format("%.0fms", millis);
   }

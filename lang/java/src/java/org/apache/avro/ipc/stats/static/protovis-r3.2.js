@@ -1,4 +1,31 @@
-// fba9dc2
+/* Copyright (c) 2010, Stanford Visualization Group
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ * 
+ *   * Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ * 
+ *   * Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ * 
+ *   * Neither the name of Stanford University nor the names of its contributors
+ *     may be used to endorse or promote products derived from this software
+ *     without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 var a;if(!Array.prototype.map)Array.prototype.map=function(b,c){for(var d=this.length,f=new Array(d),g=0;g<d;g++)if(g in this)f[g]=b.call(c,this[g],g,this);return f};if(!Array.prototype.filter)Array.prototype.filter=function(b,c){for(var d=this.length,f=[],g=0;g<d;g++)if(g in this){var h=this[g];b.call(c,h,g,this)&&f.push(h)}return f};if(!Array.prototype.forEach)Array.prototype.forEach=function(b,c){for(var d=this.length>>>0,f=0;f<d;f++)f in this&&b.call(c,this[f],f,this)};
 if(!Array.prototype.reduce)Array.prototype.reduce=function(b,c){var d=this.length;if(!d&&arguments.length==1)throw new Error("reduce: empty array, no initial value");var f=0;if(arguments.length<2)for(;;){if(f in this){c=this[f++];break}if(++f>=d)throw new Error("reduce: no values, no initial value");}for(;f<d;f++)if(f in this)c=b(c,this[f],f,this);return c};var pv={};pv.version={major:3,minor:2};pv.identity=function(b){return b};pv.index=function(){return this.index};pv.child=function(){return this.childIndex};
 pv.parent=function(){return this.parent.index};pv.extend=function(b){function c(){}c.prototype=b.prototype||b;return new c};

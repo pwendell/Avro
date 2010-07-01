@@ -9,6 +9,7 @@ import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.DefaultServlet;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.resource.FileResource;
+import org.mortbay.resource.JarResource;
 import org.mortbay.resource.Resource;
 
 /* This is a server that displays live information from a StatsPlugin.
@@ -54,12 +55,10 @@ public class StatsServer {
       String filename =  parts[parts.length - 1];
       try {
         URL resource = getClass().getClassLoader().getResource(
-            "org/apache/avro/ipc/stats/templates/" + filename);
+            "org/apache/avro/ipc/stats/static/" + filename);
         if (resource == null) { return null; }
-        return new FileResource(resource);
+        return Resource.newResource(resource);
       } catch (IOException e) {
-        return null;
-      } catch (URISyntaxException e) {
         return null;
       }
     }
