@@ -39,12 +39,7 @@ import org.apache.avro.ipc.LocalTransceiver;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.Responder;
 import org.apache.avro.ipc.Transceiver;
-import org.apache.avro.specific.SpecificRequestor;
-import org.apache.avro.util.Utf8;
 import org.junit.Test;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.log.Log;
 
 public class TestStatsPluginAndServlet {
@@ -194,12 +189,7 @@ public class TestStatsPluginAndServlet {
     // Start Avro server
     new HttpServer(r, Integer.parseInt(args[0]));
 
-    // Ideally we could use the same Jetty server
-    Server httpServer = new Server(Integer.parseInt(args[1]));
-    new Context(httpServer, "/").addServlet(
-        new ServletHolder(new StatsServlet(p)), "/*");
-    
-    httpServer.start();
+    StatsServer ss = new StatsServer(p, 8080);
     
     HttpTransceiver trans = new HttpTransceiver(
         new URL("http://localhost:" + Integer.parseInt(args[0])));

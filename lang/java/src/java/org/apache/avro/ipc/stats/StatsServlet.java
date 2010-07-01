@@ -17,8 +17,11 @@
  */
 package org.apache.avro.ipc.stats;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
@@ -52,21 +55,28 @@ import org.apache.avro.ipc.RPCContext;
  */ 
 public class StatsServlet extends HttpServlet {
   private final StatsPlugin statsPlugin;
-  private VelocityEngine ve;
+  private VelocityEngine velocityEngine;
+  private static final SimpleDateFormat formatter = 
+    new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
   
   public StatsServlet(StatsPlugin statsPlugin) {
     this.statsPlugin = statsPlugin;
-    this.ve = new VelocityEngine();
-    ve.addProperty("resource.loader", "class");
+    this.velocityEngine = new VelocityEngine();
     
-    // Have velocity load based on existing classpath
-    ve.addProperty("class.resource.loader.class",
+    // These two properties tell Velocity to use its own classpath-based loader
+    velocityEngine.addProperty("resource.loader", "class");
+    velocityEngine.addProperty("class.resource.loader.class",
         "org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader");
   }
 
-  public static List<String> escapeStringArray(List<String> input) {
+  /* Surround each string in an array with quotation marks, and escape quotes.
+   * 
+   * This is useful when we have an array of strings that we want to turn into
+   * a javascript array declaration. 
+   */
+  protected static List<String> escapeStringArray(List<String> input) {
     for (int i = 0; i < input.size(); i++) {
-      input.set(i, "\"" + input.get(i) + "\"");
+      input.set(i, "\"" + input.get(i).replace("\"", "\\\"") + "\"");
     }
     return input;
   }
@@ -89,11 +99,13 @@ public class StatsServlet extends HttpServlet {
 			try {
 			  InputStream is = getClass().getClassLoader().getResourceAsStream(
 			      "org/apache/avro/ipc/stats/templates/" + mediaFileName);
-				PrintWriter out = resp.getWriter();
-				int i;
-				while ((i = is.read()) != -1) {
-				  out.write(i);
-				}
+	      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+	      BufferedWriter out = new BufferedWriter(resp.getWriter());
+	      String line;
+	      while ((line = reader.readLine()) != null) {
+	        out.write(line + System.getProperty("line.separator"));
+	      }
+	      out.flush();
 				return;
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -133,13 +145,13 @@ public class StatsServlet extends HttpServlet {
     context.put("inFlightRpcs", rpcs);
     context.put("methodDetails", methods);
     
-    SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
     context.put("currTime", formatter.format(new Date()));
     context.put("startupTime", formatter.format(statsPlugin.startupTime));
     
     Template t;
     try {
-      t = ve.getTemplate("org/apache/avro/ipc/stats/templates/statsview.vm");
+      t = velocityEngine.getTemplate(
+          "org/apache/avro/ipc/stats/templates/statsview.vm");
     } catch (ResourceNotFoundException e) {
       throw new IOException();
     } catch (ParseErrorException e) {
