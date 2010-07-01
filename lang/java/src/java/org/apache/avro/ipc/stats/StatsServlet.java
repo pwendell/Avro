@@ -17,13 +17,9 @@
  */
 package org.apache.avro.ipc.stats;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.io.Writer;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -45,6 +42,8 @@ import org.apache.velocity.exception.ResourceNotFoundException;
 
 import org.apache.avro.Protocol.Message;
 import org.apache.avro.ipc.RPCContext;
+import org.mortbay.jetty.servlet.DefaultServlet;
+import org.mortbay.resource.Resource;
 
 /**
  * Exposes information provided by a StatsPlugin as
@@ -57,8 +56,31 @@ import org.apache.avro.ipc.RPCContext;
 public class StatsServlet extends HttpServlet {
   private final StatsPlugin statsPlugin;
   private VelocityEngine velocityEngine;
-  private static final SimpleDateFormat formatter = 
+  private static final SimpleDateFormat FORMATTER = 
     new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
+  private StaticServlet staticServlet; // For static file requests
+  RequestDispatcher dispatcher = staticServlet.getServletContext().
+    getRequestDispatcher(staticServlet.getServletName());
+  
+  /**
+   * Very simple servlet class capable of serving static files.
+   */
+  private class StaticServlet extends DefaultServlet {
+    public Resource getResource(String pathInContext) {
+      // Take only last slice of the URL as a filename, so we can adjust path. 
+      // This also prevents mischief like '../../foo.css'
+      String[] parts = pathInContext.split("/");
+      String filename =  parts[parts.length - 1];
+      try {
+        URL resource = getClass().getClassLoader().getResource(
+            "org/apache/avro/ipc/stats/static/" + filename);
+        if (resource == null) { return null; }
+        return Resource.newResource(resource);
+      } catch (IOException e) {
+        return null;
+      }
+    }
+  }
   
   public StatsServlet(StatsPlugin statsPlugin) {
     this.statsPlugin = statsPlugin;
@@ -108,13 +130,19 @@ public class StatsServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-	  resp.setContentType("text/html");
-	  try {
-		writeStats(resp.getWriter()); 
-	  }
-		catch (Exception e) {
-		  e.printStackTrace();
-		}
+    resp.setContentType("text/html");
+    String url = req.getRequestURL().toString();
+    String[] parts = url.split("//")[1].split("/");
+    if (parts.length > 1 && (parts[1] == "static")) {
+      dispatcher.forward(req, resp);
+    }
+    
+    try {
+      writeStats(resp.getWriter()); 
+    }
+    catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   void writeStats(Writer w) throws IOException {
@@ -127,25 +155,25 @@ public class StatsServlet extends HttpServlet {
       new ArrayList<RenderableMessage>();
     
     for (Entry<RPCContext, Stopwatch> rpc : 
-    	   this.statsPlugin.activeRpcs.entrySet()) {
+         this.statsPlugin.activeRpcs.entrySet()) {
       rpcs.add(renderActiveRpc(rpc.getKey(), rpc.getValue()));
     }
     
     // Get set of all seen messages
     Set<Message> keys = null;
     synchronized(this.statsPlugin.methodTimings) {
-    	 keys = this.statsPlugin.methodTimings.keySet();
+       keys = this.statsPlugin.methodTimings.keySet();
     
       for (Message m: keys) {
-      	messages.add(renderMethod(m));
+        messages.add(renderMethod(m));
       }
     }
     
     context.put("inFlightRpcs", rpcs);
     context.put("messages", messages);
     
-    context.put("currTime", formatter.format(new Date()));
-    context.put("startupTime", formatter.format(statsPlugin.startupTime));
+    context.put("currTime", FORMATTER.format(new Date()));
+    context.put("startupTime", FORMATTER.format(statsPlugin.startupTime));
     
     Template t;
     try {
@@ -163,7 +191,7 @@ public class StatsServlet extends HttpServlet {
 
   private String renderActiveRpc(RPCContext rpc, Stopwatch stopwatch) 
       throws IOException {
-  	String out = new String();
+    String out = new String();
     out += rpc.getMessage().getName() + ": " + 
         formatMillis(StatsPlugin.nanosToMillis(stopwatch.elapsedNanos()));
     return out;
@@ -254,75 +282,6 @@ public class StatsServlet extends HttpServlet {
     return out;
   }
   
-  /*
-  private String renderMethod(Message message) 
-      throws IOException {
-    // Print out a nice HTML table with stats for this message
-  	String out = new String();
-    out += "<h4>" + message.getName() + "</h4>";
-  	out += "<table width='100%'><tr>";
-  	synchronized(this.statsPlugin.methodTimings) {
-  	  out += "<td>";
-      FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
-      out += "Average Duration: " + hist.getMean() + "ms" + "<br>";
-      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
-      out += "\n<script>\n";
-      out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
-        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
-        getBucketLabels()).toArray()) 
-        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p><br>Recent Durations</p><script>\n";
-      out += "makeDotChart(";
-      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
-      out += ");</script>";
-      out += "</td>";
-  	}
-   	
-    synchronized(this.statsPlugin.receivePayloads) {
-      out += "<td>";
-      IntegerHistogram<?> hist = this.statsPlugin.receivePayloads.get(message);
-      out += "<p>Number of receives: " + Integer.toString(hist.getCount());
-      out += "<br>";
-      out += "Average Payload: " + hist.getMean() + "<br>";
-      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
-      out += "\n<script>\n";
-      out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
-        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
-        getBucketLabels()).toArray()) 
-        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p><br>Recent Send Payloads</p><script>\n";
-      out += "makeDotChart(";
-      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
-      out += ");</script>";
-      out += "</td>";
-  	}
-   	
-    synchronized(this.statsPlugin.sendPayloads) {
-      out += "<td>";
-      IntegerHistogram<?> hist = this.statsPlugin.sendPayloads.get(message);
-      out += "<p>Number of sends: " + Integer.toString(hist.getCount());
-      out += "<br>";
-      out += "Average Payload: " + hist.getMean() + "<br> ";
-      out += "Std Dev: " + hist.getUnbiasedStdDev() + "</p>";
-      out += "\n<script>\n";
-      out += "makeBarChart(" + 
-        Arrays.toString(hist.getSegmenter().getBoundaryLabels().toArray()) 
-        + ", " + Arrays.toString(escapeStringArray(hist.getSegmenter().
-        getBucketLabels()).toArray()) 
-        + ", " + Arrays.toString(hist.getHistogram()) + ")\n";
-      out += "</script><p>Recent Receive Payloads</p><script>\n";
-      out += "makeDotChart(";
-      out += Arrays.toString(hist.getRecentAdditions().toArray()); 
-      out += ");</script>";
-      out += "</td>";
-    }
-    out += "</tr></table>";
-    
-    return out;
-  }
-*/
   private CharSequence formatMillis(float millis) {
     return String.format("%.0fms", millis);
   }

@@ -57,10 +57,10 @@ public class TestStatsPluginAndServlet {
     StatsServlet servlet = new StatsServlet(statsPlugin);
     StringWriter w = new StringWriter();
     try {
-			servlet.writeStats(w);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+      servlet.writeStats(w);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     String o = w.toString();
     return o;
   }
@@ -107,7 +107,7 @@ public class TestStatsPluginAndServlet {
   public void testMultipleRPCs() throws IOException {
     FakeTicks t = new FakeTicks();
     StatsPlugin statsPlugin = new StatsPlugin(t, StatsPlugin.LATENCY_SEGMENTER,
-    		StatsPlugin.PAYLOAD_SEGMENTER);
+        StatsPlugin.PAYLOAD_SEGMENTER);
     RPCContext context1 = makeContext();
     RPCContext context2 = makeContext();
     statsPlugin.serverReceiveRequest(context1);
@@ -179,7 +179,7 @@ public class TestStatsPluginAndServlet {
     Protocol protocol = Protocol.parse("{\"protocol\": \"sleepy\", "
         + "\"messages\": { \"sleep\": {"
         + "   \"request\": [{\"name\": \"millis\", \"type\": \"long\"}," +
-        		"{\"name\": \"data\", \"type\": \"bytes\"}], "
+          "{\"name\": \"data\", \"type\": \"bytes\"}], "
         + "   \"response\": \"null\"} } }");
     Log.info("Using protocol: " + protocol.toString());
     Responder r = new SleepyResponder(protocol);

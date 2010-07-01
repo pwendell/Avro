@@ -103,7 +103,7 @@ public class StatsPlugin extends RPCPlugin {
 
   /** Construct a plugin with custom Ticks and Segmenter implementations. */
   StatsPlugin(Ticks ticks, Segmenter<?, Float> floatSegmenter, 
-  		Segmenter<?, Integer> integerSegmenter) {
+      Segmenter<?, Integer> integerSegmenter) {
     this.floatSegmenter = floatSegmenter;
     this.integerSegmenter = integerSegmenter;
     this.ticks = ticks;
