@@ -80,7 +80,7 @@
     #foreach ($message in $messages)
     #set( $width = $message.charts.size() * 300 ) 
     <table id="charts_table" width=$width>
-      <h3>$message.name</h3>
+      <h3>$message.name ($message.numCalls calls)</h3>
       <tr valign="top">
       #foreach ($chart in $message.charts)
         <td>#makeChartHeader($chart) </td>

@@ -26,6 +26,8 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import javax.servlet.UnavailableException;
+
 import org.apache.avro.Protocol;
 import org.apache.avro.Protocol.Message;
 import org.apache.avro.generic.GenericData;
@@ -54,7 +56,12 @@ public class TestStatsPluginAndServlet {
   /** Returns an HTML string. */
   private String generateServletResponse(StatsPlugin statsPlugin)
       throws IOException {
-    StatsServlet servlet = new StatsServlet(statsPlugin);
+    StatsServlet servlet;
+    try {
+      servlet = new StatsServlet(statsPlugin);
+    } catch (UnavailableException e1) {
+      throw new IOException();
+    }
     StringWriter w = new StringWriter();
     try {
       servlet.writeStats(w);
@@ -100,7 +107,7 @@ public class TestStatsPluginAndServlet {
     }
 
     String o = generateServletResponse(statsPlugin);
-    assertTrue(o.contains("Number of calls: 10"));
+    assertTrue(o.contains("10 calls"));
   }
 
   @Test
@@ -121,8 +128,7 @@ public class TestStatsPluginAndServlet {
     t.passTime(900*MS); // second takes 900ms
     statsPlugin.serverSendResponse(context2);
     r = generateServletResponse(statsPlugin);
-    System.out.println(r);
-    assertTrue(r.contains("Average Duration: 500ms"));
+    assertTrue(r.contains("Average: 500.0ms"));
   }
 
   @Test
@@ -134,7 +140,7 @@ public class TestStatsPluginAndServlet {
     makeRequest(t);
     
     String resp = generateServletResponse(statsPlugin);
-    assertTrue(resp.contains("Average Payload: 2.0"));
+    assertTrue(resp.contains("Average: 2.0"));
  
   }
   

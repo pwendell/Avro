@@ -16,6 +16,7 @@ package org.apache.avro.ipc.stats;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import org.apache.avro.ipc.stats.StaticServlet;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
@@ -38,8 +39,11 @@ public class StatsServer {
     this.httpServer = new Server(port);
     this.plugin = plugin;
     
+    Context staticContext = new Context(httpServer, "/static");
+    staticContext.addServlet(new ServletHolder(new StaticServlet()), "/");
+    
     Context context = new Context(httpServer, "/");
-    context.addServlet(new ServletHolder(new StatsServlet(plugin)), "/*");
+    context.addServlet(new ServletHolder(new StatsServlet(plugin)), "/");
     
     httpServer.start();
   }

@@ -30,7 +30,9 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.UnavailableException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -58,31 +60,8 @@ public class StatsServlet extends HttpServlet {
   private VelocityEngine velocityEngine;
   private static final SimpleDateFormat FORMATTER = 
     new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
-  private StaticServlet staticServlet; // For static file requests
-  RequestDispatcher dispatcher = staticServlet.getServletContext().
-    getRequestDispatcher(staticServlet.getServletName());
-  
-  /**
-   * Very simple servlet class capable of serving static files.
-   */
-  private class StaticServlet extends DefaultServlet {
-    public Resource getResource(String pathInContext) {
-      // Take only last slice of the URL as a filename, so we can adjust path. 
-      // This also prevents mischief like '../../foo.css'
-      String[] parts = pathInContext.split("/");
-      String filename =  parts[parts.length - 1];
-      try {
-        URL resource = getClass().getClassLoader().getResource(
-            "org/apache/avro/ipc/stats/static/" + filename);
-        if (resource == null) { return null; }
-        return Resource.newResource(resource);
-      } catch (IOException e) {
-        return null;
-      }
-    }
-  }
-  
-  public StatsServlet(StatsPlugin statsPlugin) {
+
+  public StatsServlet(StatsPlugin statsPlugin) throws UnavailableException {
     this.statsPlugin = statsPlugin;
     this.velocityEngine = new VelocityEngine();
     
@@ -98,6 +77,7 @@ public class StatsServlet extends HttpServlet {
    * map key-value string attributes. */
   public class RenderableMessage { // Velocity brakes if not public
     public String name;
+    public int numCalls;
     public ArrayList<HashMap<String, String>> charts;
     
     public RenderableMessage(String name) {
@@ -111,6 +91,10 @@ public class StatsServlet extends HttpServlet {
     
     public String getname() {
       return this.name;
+    }
+    
+    public int getNumCalls() {
+      return this.numCalls;
     }
   }
 
@@ -133,9 +117,6 @@ public class StatsServlet extends HttpServlet {
     resp.setContentType("text/html");
     String url = req.getRequestURL().toString();
     String[] parts = url.split("//")[1].split("/");
-    if (parts.length > 1 && (parts[1] == "static")) {
-      dispatcher.forward(req, resp);
-    }
     
     try {
       writeStats(resp.getWriter()); 
@@ -203,6 +184,8 @@ public class StatsServlet extends HttpServlet {
     
     synchronized(this.statsPlugin.methodTimings) {
       FloatHistogram<?> hist = this.statsPlugin.methodTimings.get(message);
+      out.numCalls = hist.getCount();
+      
       HashMap<String, String> latencyBar = new HashMap<String, String>();
       // Fill in chart attributes for velocity
       latencyBar.put("type", "bar");
