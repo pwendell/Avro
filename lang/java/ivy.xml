@@ -58,6 +58,7 @@
     <dependency org="net.java.dev.javacc" name="javacc" rev="5.0" 
         conf="build->default" />
     <dependency org="commons-lang" name="commons-lang" rev="2.5" />
+    <dependency org="commons-configuration" name="commons-configuration" rev="1.6" />
     <dependency org="org.apache.maven" name="maven-ant-tasks" rev="2.1.0"
         conf="build->default"/>
     <dependency org="net.sf.jopt-simple" name="jopt-simple" rev="3.2"

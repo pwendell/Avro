@@ -1,0 +1,38 @@
+/**
+ * A Span is our basic unit of tracing. It tracks the critical points
+ * of a single RPC call and records other call meta-data. It also
+ * allows arbitrary string annotations. Both the client and server create
+ * Span objects, each of which is populated with half of the relevant event
+ * data. They share a span ID, which allows us to merge them into one complete
+ * span later on.
+ */
+@namespace("org.apache.avro.ipc.trace")
+
+protocol AvroTrace {
+  enum SpanEventType { SERVER_RECV, SERVER_SEND, CLIENT_RECV, CLIENT_SEND }
+
+  record TimestampedEvent {
+    long timeStamp;
+    union { SpanEventType, string} event;
+  }
+
+  record Query {
+    long startTime;
+    long endTime;
+  }  
+
+  /** Test documentation */
+  record Span { // foo
+    long traceID;
+    long spanID;
+    long parentSpanID;
+    string messageName;
+    long requestPayloadSize;
+    long responsePayloadSize;
+    string host;
+    array<TimestampedEvent> events;
+  }
+
+  long getQueryHandle(Query query);
+  bytes getSpanBlock(long queryHandle);
+}

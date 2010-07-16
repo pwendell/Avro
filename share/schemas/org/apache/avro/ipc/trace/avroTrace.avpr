@@ -1,0 +1,84 @@
+/**
+ * A Span is our basic unit of tracing. It tracks the critical points
+ * of a single RPC call and records other call meta-data. It also
+ * allows arbitrary string annotations. Both the client and server create
+ * Span objects, each of which is populated with half of the relevant event
+ * data. They share a span ID, which allows us to merge them into one complete
+ * span later on.
+ */
+{
+  "protocol" : "AvroTrace",
+  "namespace" : "org.apache.avro.ipc.trace",
+  "types" : [ {
+    "type" : "enum",
+    "name" : "SpanEventType",
+    "symbols" : [ "SERVER_RECV", "SERVER_SEND", "CLIENT_RECV", "CLIENT_SEND" ]
+  }, {
+    "type" : "record",
+    "name" : "TimestampedEvent",
+    "fields" : [ {
+      "name" : "timeStamp",
+      "type" : "long"
+    }, {
+      "name" : "event",
+      "type" : [ "SpanEventType", "string" ]
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "Query",
+    "fields" : [ {
+      "name" : "startTime",
+      "type" : "long"
+    }, {
+      "name" : "endTime",
+      "type" : "long"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "Span",
+    "fields" : [ {
+      "name" : "traceID",
+      "type" : "long"
+    }, {
+      "name" : "spanID",
+      "type" : "long"
+    }, {
+      "name" : "parentSpanID",
+      "type" : "long"
+    }, {
+      "name" : "messageName",
+      "type" : "string"
+    }, {
+      "name" : "requestPayloadSize",
+      "type" : "long"
+    }, {
+      "name" : "responsePayloadSize",
+      "type" : "long"
+    }, {
+      "name" : "host",
+      "type" : "string"
+    }, {
+      "name" : "events",
+      "type" : {
+        "type" : "array",
+        "items" : "TimestampedEvent"
+      }
+    } ]
+  } ],
+  "messages" : {
+    "getQueryHandle" : {
+      "request" : [ {
+        "name" : "query",
+        "type" : "Query"
+      } ],
+      "response" : "long"
+    },
+    "getSpanBlock" : {
+      "request" : [ {
+        "name" : "queryHandle",
+        "type" : "long"
+      } ],
+      "response" : "bytes"
+    }
+  }
+}
