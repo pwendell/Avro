@@ -15,35 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.avro.ipc.trace;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
- * Responsible for storing spans locally and answering span queries.
- * 
- * Since query for a given set of spans may persist over several RPC
- * calls, they are indexed by a handle.
- *
+ * A node of of an RPC {@link Trace}. Each node stores a {@link Span} object
+ * and a list of zero or more child nodes.
  */
-public interface SpanStorage {
+class TraceNode {
   /**
-   * Add a span. 
-   * @param s
+   * The {@link Span} to which corresponds to this node in the call tree.
    */
-  public void addSpan(Span s);
+  public Span span;
   
   /**
-   * Set the maximum number of spans to have in storage at any given time.
-   * @param bytes
+   * A list of this TraceNode's children.
    */
-  public void setMaxSpans(long maxSpans);
+  public List<TraceNode> children;
+
+  public TraceNode(Span span, List<TraceNode> children) {
+    this.span = span;
+    this.children = children;
+  }
   
-  /**
-   * Return a list of all spans currently stored. For testing.
-   * @return
-   */
-  public List<Span> getAllSpans();
+  public TraceNode() {
+    
+  }
 }

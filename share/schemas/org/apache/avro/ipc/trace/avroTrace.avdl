@@ -11,28 +11,23 @@
 protocol AvroTrace {
   enum SpanEventType { SERVER_RECV, SERVER_SEND, CLIENT_RECV, CLIENT_SEND }
 
+  fixed ID(8);
+
   record TimestampedEvent {
-    long timeStamp;
+    long timeStamp; // Unix time, in nanoseconds
     union { SpanEventType, string} event;
   }
 
-  record Query {
-    long startTime;
-    long endTime;
-  }  
-
-  /** Test documentation */
-  record Span { // foo
-    long traceID;
-    long spanID;
-    long parentSpanID;
-    string messageName;
-    long requestPayloadSize;
-    long responsePayloadSize;
-    string host;
-    array<TimestampedEvent> events;
+  record Span {
+    ID  traceID;  // ID shared by all Spans in a given trace
+    ID spanID;    // Random ID for this Span
+    union { ID, null } parentSpanID; // Parent Span ID (null if root Span)
+    string messageName;       // Function call represented
+    long requestPayloadSize;  // Size (bytes) of the request
+    long responsePayloadSize; // Size (byts) of the response
+    string requestorHostname; // Hostname of requestor
+    string responderHostname; // Hostname of the responder
+    array<TimestampedEvent> events;  // List of critical events
+    boolean complete; // Whether includes data from both sides
   }
-
-  long getQueryHandle(Query query);
-  bytes getSpanBlock(long queryHandle);
 }

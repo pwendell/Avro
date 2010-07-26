@@ -18,15 +18,9 @@
 
 package org.apache.avro.ipc.trace;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.ipc.ByteBufferOutputStream;
-import org.apache.avro.specific.SpecificDatumWriter;
 
 /**
  * Example implementation of SpanStorage which keeps spans in memory.
@@ -54,46 +48,6 @@ public class InMemorySpanStorage implements SpanStorage {
     this.spans.add(s);
     if (this.spans.size() > this.maxSpans) {
       this.spans.removeFirst();
-    }
-  }
-
-  @Override
-  public long getQueryHandle(Query q) {
-    queries.put(lastQueryHandle + 1, q);
-    lastQueryHandle = lastQueryHandle + 1;
-    return lastQueryHandle;
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public ByteBuffer getSpanBlock(long queryHandle) throws IOException {
-    ByteBufferOutputStream bbo = new ByteBufferOutputStream();
-    BinaryEncoder encoder = new BinaryEncoder(bbo);
-    SpecificDatumWriter writer = new SpecificDatumWriter(Span.SCHEMA$);
-    
-    for (Span s : spans) {
-      writer.write(s, encoder);
-    }
-    
-    List<ByteBuffer> buffers = bbo.getBufferList();
-    
-    int totalBytes = 0;
-    for (ByteBuffer bb : buffers) {
-      totalBytes += bb.position();
-    }
-    
-    ByteBuffer out = ByteBuffer.allocate(totalBytes);
-    for (ByteBuffer bb : buffers) {
-      out.put(bb);
-    }
-    
-    return out;
-  }
-
-  @Override
-  public void destroyQueryHandle(long queryHandle) {
-    if (queries.containsKey(queryHandle)) {
-      queries.remove(queryHandle);
     }
   }
 

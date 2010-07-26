@@ -22,12 +22,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.nio.LongBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
@@ -35,11 +33,16 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.ipc.AvroRemoteException;
 import org.apache.avro.ipc.ByteBufferOutputStream;
+import org.apache.avro.ipc.HttpServer;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.RPCPlugin;
+import org.apache.avro.specific.SpecificResponder;
 import org.apache.avro.util.Utf8;
-import org.apache.hadoop.conf.Configuration;
+import org.mortbay.jetty.Server;
+import org.mortbay.jetty.servlet.Context;
+import org.mortbay.jetty.servlet.ServletHolder;
 
 /**
  * A tracing plugin for Avro.
@@ -54,25 +57,19 @@ import org.apache.hadoop.conf.Configuration;
  * serial RPC calls. That is, we cannot support the case in which the
  * Requestor's request does not occur in the same thread as the Responder's
  * response. 
- * 
- * Configuration options are as follows. None are required:
- *   NAME               TYPE    MIN   MAX      DEFAULT
- *   traceProbability   float   0.0   1.0      0.0       // trace frequency
- *   port               int     0     65535    51001     // port to serve traces
- *   maxSpans           long    0     inf      5000      // max traces stored
- *   storageType        string                 MEMORY    // how to store traces
- * @author patrick
- *
  */
 public class TracePlugin extends RPCPlugin {
   /*
    * Our base unit of tracing is a Span, which is uniquely described by a
    * span id.  
    */
-  private static DecoderFactory FACTORY;
+  final private static DecoderFactory FACTORY = new DecoderFactory();
   private static BinaryDecoder DECODER;
   private static BinaryEncoder ENCODER;
-  private static Random RANDOM;
+  final private static Random RANDOM = new Random();
+  private static Utf8 HOSTNAME;
+  
+  public static enum StorageType { MEMORY, DISK };
   
   // Keys used for Avro meta-data
   private static final Utf8 TRACE_ID_KEY = new Utf8("traceID");
@@ -111,29 +108,98 @@ public class TracePlugin extends RPCPlugin {
   private static void addEvent(Span span, SpanEventType eventType) {
     TimestampedEvent ev = new TimestampedEvent();
     ev.event = eventType;
-    ev.timeStamp = System.currentTimeMillis();
+    ev.timeStamp = System.currentTimeMillis() * 1000000;
     span.events.add(ev);
   }
   
-  private float traceProb; // Probability of starting tracing
-  private int port;        // Port to serve tracing data
-  private String storageType;  // How to store spans
+  /**
+   * Get the long value from a given ID object.
+   */
+  public static long longValue(ID in) {
+    if (in == null) { 
+      throw new IllegalArgumentException("ID cannot be null");
+    }
+    if (in.bytes() == null) {
+      throw new IllegalArgumentException("ID cannot be empty");
+    }
+    if (in.bytes().length != 8) {
+      throw new IllegalArgumentException("ID must be 8 bytes");
+    }
+    ByteBuffer buff = ByteBuffer.wrap(in.bytes());
+    return buff.getLong();
+  }
+  
+  /**
+   * Get an ID associated with a given long value. 
+   */
+  public static ID IDValue(long in) {
+    byte[] bArray = new byte[8];
+    ByteBuffer bBuffer = ByteBuffer.wrap(bArray);
+    LongBuffer lBuffer = bBuffer.asLongBuffer();
+    lBuffer.put(0, in);
+    ID out = new ID();
+    out.bytes(bArray);
+    return out;
+  }
+  
+  /**
+   * Verify the equality of ID objects. Both being null references is
+   * considered equal.
+   */
+  public static boolean IDsEqual(ID a, ID b) {
+    if (a == null && b == null) { return true; }
+    if (a == null || b == null) { return false; }
+    
+    byte[] aBytes = a.bytes();
+    byte[] bBytes = b.bytes();
+    
+    if (aBytes.length != bBytes.length) { return false; }
+    if (aBytes == null && bBytes == null) { return true; }
+    if (aBytes == null || bBytes == null) { return false; }
+    
+    for (int i = 0; i < aBytes.length; i++) {
+      if (aBytes[i] != bBytes[i]) { return false; }
+    }
+    return true;
+  }
+  class TraceResponder implements AvroTrace {
+    private SpanStorage spanStorage;
+    
+    public TraceResponder(SpanStorage spanStorage) {
+      this.spanStorage = spanStorage;
+    }
+  }
+  
+  private double traceProb; // Probability of starting tracing
+  private int port;         // Port to serve tracing data
+  private int clientPort;   // Port to expose client HTTP interface
+  private StorageType storageType;  // How to store spans
   private long maxSpans; // Max number of spans to store
+  private boolean enabled; // Whether to participate in tracing
 
   private ThreadLocal<Span> currentSpan; // span in which we are server
-  private ThreadLocal<Span> childSpan; // span in which we are client
+  private ThreadLocal<Span> childSpan;   // span in which we are client
   
+  // Storage and serving of spans
   protected SpanStorage storage;
-
-  public TracePlugin(Configuration conf) {
-    traceProb = conf.getFloat("traceProbability", (float) 0.0);
-    port = conf.getInt("port", 51001);
-    storageType = conf.getStrings("spanStorage", "MEMORY")[0];
-    maxSpans = conf.getLong("maxSpans", 5000);
+  protected HttpServer httpServer;
+  protected SpecificResponder responder;
+  
+  // Client interface
+  protected Server clientFacingServer;
+  
+  public TracePlugin(TracePluginConfiguration conf) throws IOException {
+    traceProb = conf.traceProb;
+    port = conf.port;
+    clientPort = conf.clientPort;
+    storageType = conf.storageType;
+    maxSpans = conf.maxSpans;
+    enabled = conf.enabled;
     
     // check bounds
-    if (!(traceProb >= 0.0 && traceProb <= 1.0)) { traceProb = (float) 0.0; }
+    if (!(traceProb >= 0.0 && traceProb <= 1.0)) { traceProb = 0.0; }
     if (!(port > 0 && port < 65535)) { port = 51001; }
+    if (!(clientPort > 0 && clientPort < 65535)) { clientPort = 51200; }
     if (maxSpans < 0) { maxSpans = 5000; }
     
     currentSpan = new ThreadLocal<Span>(){
@@ -147,9 +213,6 @@ public class TracePlugin extends RPCPlugin {
           return null;
       }
     };
-    
-    FACTORY = new DecoderFactory();
-    RANDOM = new Random();
 
     if (storageType.equals("MEMORY")) {
       this.storage = new InMemorySpanStorage();
@@ -159,6 +222,20 @@ public class TracePlugin extends RPCPlugin {
     }
     
     this.storage.setMaxSpans(maxSpans);
+    
+    try {
+      HOSTNAME = new Utf8(InetAddress.getLocalHost().getHostName());
+    } catch (UnknownHostException e) {
+      HOSTNAME = new Utf8("unknown");
+    }
+    
+    // Start serving span data
+    responder = new SpecificResponder(
+        AvroTrace.PROTOCOL, new TraceResponder(this.storage)); 
+    httpServer = new HttpServer(responder, this.port);
+    
+    // Start client-facing servlet
+    initializeClientServer();
   }
   
   @Override
@@ -168,58 +245,58 @@ public class TracePlugin extends RPCPlugin {
     // (2) If we are part of an existing trace
     
     if ((this.currentSpan.get() == null) && 
-        (RANDOM.nextFloat() < this.traceProb)) {
+        (RANDOM.nextFloat() < this.traceProb) && enabled) {
       Span span = new Span();
-      span.spanID = Math.abs(RANDOM.nextLong());
-      span.parentSpanID = -1;
-      span.traceID = Math.abs(RANDOM.nextLong());
+      span.complete = false;
+      
+      byte[] spanIDBytes = new byte[8];
+      RANDOM.nextBytes(spanIDBytes);
+      span.spanID = new ID();
+      span.spanID.bytes(spanIDBytes);
+      
+      span.parentSpanID = null;
+
+      byte[] traceIDBytes = new byte[8];
+      RANDOM.nextBytes(traceIDBytes);
+      span.traceID = new ID();
+      span.traceID.bytes(traceIDBytes);
+      
       span.events = new GenericData.Array<TimestampedEvent>(
           100, Schema.createArray(TimestampedEvent.SCHEMA$));
-      try {
-        span.host = new Utf8(InetAddress.getLocalHost().getHostName());
-      } catch (UnknownHostException e1) {
-        span.host = new Utf8("Unknown");
-      }
+
+      span.requestorHostname = HOSTNAME;
       
       this.childSpan.set(span);
     }
     
-    if (this.currentSpan.get() != null) {
+    if ((this.currentSpan.get() != null) && enabled) {
       Span currSpan = this.currentSpan.get();
       Span span = new Span();
-      span.spanID = Math.abs(RANDOM.nextLong());
+      span.complete = false;
+      
+      byte[] spanIDBytes = new byte[8];
+      RANDOM.nextBytes(spanIDBytes);
+      span.spanID = new ID();
+      span.spanID.bytes(spanIDBytes);
+      
       span.parentSpanID = currSpan.spanID;
       span.traceID = currSpan.traceID;
       span.events = new GenericData.Array<TimestampedEvent>(
           100, Schema.createArray(TimestampedEvent.SCHEMA$));
-      try {
-        span.host = new Utf8(InetAddress.getLocalHost().getHostName());
-      } catch (UnknownHostException e1) {
-        span.host = new Utf8("Unknown");
-      }
+      span.requestorHostname = HOSTNAME;
       
       this.childSpan.set(span);
     }
     
     if (this.childSpan.get() != null) {
       Span span = this.childSpan.get();
-      try {
+      context.requestHandshakeMeta().put(
+          TRACE_ID_KEY, ByteBuffer.wrap(span.traceID.bytes()));
+      context.requestHandshakeMeta().put(
+          SPAN_ID_KEY, ByteBuffer.wrap(span.spanID.bytes()));
+      if (span.parentSpanID != null) {
         context.requestHandshakeMeta().put(
-            TRACE_ID_KEY, encodeLong(span.traceID));
-      } catch (IOException e) {
-        return;
-      }
-      try {
-        context.requestHandshakeMeta().put(
-            SPAN_ID_KEY, encodeLong(span.spanID));
-      } catch (IOException e) {
-        return;
-      }
-      try {
-        context.requestHandshakeMeta().put(
-            PARENT_SPAN_ID_KEY, encodeLong(span.parentSpanID));
-      } catch (IOException e) {
-        return;
+            PARENT_SPAN_ID_KEY, ByteBuffer.wrap(span.parentSpanID.bytes())); 
       }
     }
   }
@@ -228,22 +305,29 @@ public class TracePlugin extends RPCPlugin {
   public void serverConnecting(RPCContext context) {
     Map<Utf8, ByteBuffer> meta = context.requestHandshakeMeta();
     // Are we being asked to propagate a trace?
-    if (meta.containsKey(TRACE_ID_KEY)) {
-      if (!(meta.containsKey(SPAN_ID_KEY) && 
-          meta.containsKey(PARENT_SPAN_ID_KEY))) {
-        return; // parent should have given full span data
+    if (meta.containsKey(TRACE_ID_KEY) && enabled) {
+      if (!(meta.containsKey(SPAN_ID_KEY))) {
+        return; // should have been given full span data
       }
       Span span = new Span();
-      span.spanID = decodeLong(meta.get(SPAN_ID_KEY));
-      span.parentSpanID = decodeLong(meta.get(PARENT_SPAN_ID_KEY));
-      span.traceID = decodeLong(meta.get(TRACE_ID_KEY)); // keep trace id
+      span.complete = false;
+      
+      byte[] spanIDBytes = new byte[8];
+      meta.get(SPAN_ID_KEY).get(spanIDBytes);
+      span.spanID = new ID();
+      span.spanID.bytes(spanIDBytes);
+      
+      if (meta.get(PARENT_SPAN_ID_KEY) == null) {
+        span.parentSpanID = null;
+      } else {
+        span.parentSpanID = new ID();
+        span.parentSpanID.bytes(meta.get(PARENT_SPAN_ID_KEY).array());
+      }
+      span.traceID = new ID();
+      span.traceID.bytes(meta.get(TRACE_ID_KEY).array());
       span.events = new GenericData.Array<TimestampedEvent>(
           100, Schema.createArray(TimestampedEvent.SCHEMA$));
-      try {
-        span.host = new Utf8(InetAddress.getLocalHost().getHostName());
-      } catch (UnknownHostException e1) {
-        span.host = new Utf8("Unknown");
-      }
+      span.responderHostname = HOSTNAME;
       this.currentSpan.set(span);
     }
   }
@@ -294,6 +378,21 @@ public class TracePlugin extends RPCPlugin {
         getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.childSpan.get());
       this.childSpan.set(null);
+    }
+  }
+  
+  /**
+   * Start a client-facing server. Can be overridden if users
+   * prefer to attach client Servlet to their own server. 
+   */
+  protected void initializeClientServer() {
+    clientFacingServer = new Server(clientPort);
+    Context context = new Context(clientFacingServer, "/");
+    context.addServlet(new ServletHolder(new TraceClientServlet()), "/");
+    try {
+      clientFacingServer.start();
+    } catch (Exception e) {
+      
     }
   }
 }

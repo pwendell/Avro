@@ -18,11 +18,14 @@
 package org.apache.avro.ipc.trace;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.avro.Protocol;
 import org.apache.avro.Protocol.Message;
@@ -35,8 +38,8 @@ import org.apache.avro.ipc.HttpServer;
 import org.apache.avro.ipc.HttpTransceiver;
 import org.apache.avro.ipc.RPCPlugin;
 import org.apache.avro.ipc.Responder;
-import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
+import org.mortbay.log.Log;
 
 public class TestBasicTracing {
   Protocol protocol = Protocol.parse("" + "{\"protocol\": \"Minimal\", "
@@ -61,9 +64,11 @@ public class TestBasicTracing {
 
   @Test
   public void testBasicTrace() throws IOException {
-    Configuration conf = new Configuration();
-    conf.setFloat("traceProbability", (float) 1.0);
+    TracePluginConfiguration conf = new TracePluginConfiguration();
+    conf.port = 51007;
+    conf.traceProb = 1.0;
     TracePlugin responderPlugin = new TracePlugin(conf);
+    conf.port = 51008;
     TracePlugin requestorPlugin = new TracePlugin(conf);
     
     Responder res = new TestResponder(protocol);
@@ -93,8 +98,8 @@ public class TestBasicTracing {
       Span requestorSpan = requestorSpans.get(0);
       
       // Check meta propagation     
-      assertEquals(requestorSpan.parentSpanID, -1);
-      assertEquals(responderSpan.parentSpanID, requestorSpan.spanID);
+      assertEquals(null, requestorSpan.parentSpanID);
+      assertEquals(responderSpan.parentSpanID, requestorSpan.parentSpanID);
       assertEquals(responderSpan.traceID, requestorSpan.traceID);
       
       // Check other data
@@ -102,6 +107,8 @@ public class TestBasicTracing {
       assertEquals(2, responderSpan.events.size());
       assertTrue("m".equals(requestorSpan.messageName.toString()));
       assertTrue("m".equals(responderSpan.messageName.toString()));
+      assertFalse(requestorSpan.complete);
+      assertFalse(responderSpan.complete);
     }
   }
   
@@ -203,12 +210,16 @@ public class TestBasicTracing {
 
   @Test
   public void testRecursingTrace() throws Exception {
-    Configuration conf = new Configuration();
-    conf.setFloat("traceProbability", (float) 1.0);
+    TracePluginConfiguration conf = new TracePluginConfiguration();
+    conf.traceProb = 1.0;
+    conf.port = 51010;
     TracePlugin aPlugin = new TracePlugin(conf);
-    TracePlugin bPlugin = new TracePlugin(new Configuration());
-    TracePlugin cPlugin = new TracePlugin(new Configuration());    
-    TracePlugin dPlugin = new TracePlugin(new Configuration());
+    conf.port = 51011;
+    TracePlugin bPlugin = new TracePlugin(conf);
+    conf.port = 51012;
+    TracePlugin cPlugin = new TracePlugin(conf);
+    conf.port = 51013;
+    TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
     Responder bRes = new RecursingResponder(advancedProtocol, bPlugin);
@@ -241,45 +252,113 @@ public class TestBasicTracing {
     assertEquals(1, cPlugin.storage.getAllSpans().size());
     assertEquals(1, dPlugin.storage.getAllSpans().size());
     
-    Long traceID = aPlugin.storage.getAllSpans().get(0).traceID;
+    ID traceID = aPlugin.storage.getAllSpans().get(0).traceID;
+    ID rootSpanID = null;
     
     // Verify event counts and trace ID propagation
     for (Span s: aPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertEquals(traceID.longValue(), s.traceID);
+      assertTrue(TracePlugin.IDsEqual(traceID, s.traceID));
+      assertFalse(s.complete);
+      rootSpanID = s.spanID;
     }
+    
     for (Span s: bPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertEquals(traceID.longValue(), s.traceID);
+      assertEquals(traceID, s.traceID);
+      assertFalse(s.complete);
     }
+    
     for (Span s: cPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertEquals(traceID.longValue(), s.traceID);
+      assertEquals(traceID, s.traceID);
+      assertFalse(s.complete);
     }
     for (Span s: dPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertEquals(traceID.longValue(), s.traceID);
+      assertEquals(traceID, s.traceID);
+      assertFalse(s.complete);
     }
     
     // Verify span propagation.
-    Long firstSpanID = aPlugin.storage.getAllSpans().get(0).spanID;
-    Long secondSpanID = cPlugin.storage.getAllSpans().get(0).spanID;
-    Long thirdSpanID = dPlugin.storage.getAllSpans().get(0).spanID;
+    ID firstSpanID = aPlugin.storage.getAllSpans().get(0).spanID;
+    ID secondSpanID = cPlugin.storage.getAllSpans().get(0).spanID;
+    ID thirdSpanID = dPlugin.storage.getAllSpans().get(0).spanID;
     
     boolean firstFound = false, secondFound = false, thirdFound = false;
     for (Span s: bPlugin.storage.getAllSpans()) {
-      if (s.spanID == firstSpanID) {
+      if (TracePlugin.IDsEqual(s.spanID, firstSpanID)) {
         firstFound = true;
       }
-      else if (s.spanID == secondSpanID) {
+      else if (TracePlugin.IDsEqual(s.spanID, secondSpanID)) {
         secondFound = true;
       }
-      else if (s.spanID == thirdSpanID) {
+      else if (TracePlugin.IDsEqual(s.spanID, thirdSpanID)) {
         thirdFound = true;
       }
     }
     assertTrue(firstFound);
     assertTrue(secondFound);
     assertTrue(thirdFound);
+  }
+  
+  /** Sleeps as requested. */
+  private static class SleepyResponder extends GenericResponder {
+    public SleepyResponder(Protocol local) {
+      super(local);
+    }
+
+    @Override
+    public Object respond(Message message, Object request)
+        throws AvroRemoteException {
+      try {
+        Thread.sleep((Long)((GenericRecord)request).get("millis"));
+      } catch (InterruptedException e) {
+        throw new AvroRemoteException(e);
+      }
+      return null;
+    }
+  }
+  
+  /**
+   * Demo program for using RPC trace. This automatically generates
+   * client RPC requests. 
+   * @param args
+   * @throws Exception
+   */
+  public static void main(String[] args) throws Exception {
+    if (args.length == 0) {
+      args = new String[] { "7002", "7003" };
+    }
+    Protocol protocol = Protocol.parse("{\"protocol\": \"sleepy\", "
+        + "\"messages\": { \"sleep\": {"
+        + "   \"request\": [{\"name\": \"millis\", \"type\": \"long\"}," +
+          "{\"name\": \"data\", \"type\": \"bytes\"}], "
+        + "   \"response\": \"null\"} } }");
+    Log.info("Using protocol: " + protocol.toString());
+    Responder r = new SleepyResponder(protocol);
+    TracePlugin p = new TracePlugin(new TracePluginConfiguration());
+    r.addRPCPlugin(p);
+
+    // Start Avro server
+    new HttpServer(r, Integer.parseInt(args[0]));
+
+    HttpTransceiver trans = new HttpTransceiver(
+        new URL("http://localhost:" + Integer.parseInt(args[0])));
+    GenericRequestor req = new GenericRequestor(protocol, trans); 
+    
+    
+    while(true) {
+      Thread.sleep(1000);
+      GenericRecord params = new GenericData.Record(protocol.getMessages().get(
+        "sleep").getRequest());
+      Random rand = new Random();
+      params.put("millis", Math.abs(rand.nextLong()) % 1000);
+      int payloadSize = Math.abs(rand.nextInt()) % 10000;
+      byte[] payload = new byte[payloadSize];
+      rand.nextBytes(payload);
+      params.put("data", ByteBuffer.wrap(payload));
+      req.request("sleep", params);
+    }
   }
 }
