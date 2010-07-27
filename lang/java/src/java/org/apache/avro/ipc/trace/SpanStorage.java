@@ -18,7 +18,6 @@
 
 package org.apache.avro.ipc.trace;
 
-import java.io.IOException;
 import java.util.List;
 
 /**

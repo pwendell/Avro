@@ -18,7 +18,6 @@
 
 package org.apache.avro.ipc.trace;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,10 +33,8 @@ public class InMemorySpanStorage implements SpanStorage {
   private static long DEFAULT_MAX_SPANS = 10000;
   
   protected LinkedList<Span> spans;
-  protected HashMap<Long, Query> queries;
   private long maxSpans;
-  private long lastQueryHandle = 0;
-  
+
   public InMemorySpanStorage() {
     this.spans = new LinkedList<Span>();
     this.maxSpans = DEFAULT_MAX_SPANS;
