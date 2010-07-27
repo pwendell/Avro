@@ -32,7 +32,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.ipc.HttpServer;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.RPCPlugin;
-import org.apache.avro.ipc.Responder;
 import org.apache.avro.specific.SpecificResponder;
 import org.apache.avro.util.Utf8;
 import org.mortbay.jetty.Server;
@@ -125,7 +124,7 @@ public class TracePlugin extends RPCPlugin {
   }
   
   // Add a timestampted event to this span
-  private static void addEvent(Span span, SpanEventType eventType) {
+  private static void addEvent(Span span, SpanEvent eventType) {
     TimestampedEvent ev = new TimestampedEvent();
     ev.event = eventType;
     ev.timeStamp = System.currentTimeMillis() * 1000000;
@@ -328,7 +327,7 @@ public class TracePlugin extends RPCPlugin {
   public void clientSendRequest(RPCContext context) {
     if (this.childSpan.get() != null) {
       Span child = this.childSpan.get();
-      addEvent(child, SpanEventType.CLIENT_SEND);
+      addEvent(child, SpanEvent.CLIENT_SEND);
       child.messageName = new Utf8(
           context.getMessage().getName());
       child.requestPayloadSize = getPayloadSize(context.getRequestPayload());
@@ -339,7 +338,7 @@ public class TracePlugin extends RPCPlugin {
   public void serverReceiveRequest(RPCContext context) {
     if (this.currentSpan.get() != null) {
       Span current = this.currentSpan.get();
-      addEvent(current, SpanEventType.SERVER_RECV);
+      addEvent(current, SpanEvent.SERVER_RECV);
       current.messageName = new Utf8(
           context.getMessage().getName());
       current.requestPayloadSize = getPayloadSize(context.getRequestPayload());
@@ -350,7 +349,7 @@ public class TracePlugin extends RPCPlugin {
   public void serverSendResponse(RPCContext context) {
     if (this.currentSpan.get() != null) {
       Span current = this.currentSpan.get();
-      addEvent(current, SpanEventType.SERVER_SEND);
+      addEvent(current, SpanEvent.SERVER_SEND);
       current.responsePayloadSize = 
         getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.currentSpan.get());
@@ -362,7 +361,7 @@ public class TracePlugin extends RPCPlugin {
   public void clientReceiveResponse(RPCContext context) {
     if (this.childSpan.get() != null) {
       Span child = this.childSpan.get();
-      addEvent(child, SpanEventType.CLIENT_RECV);
+      addEvent(child, SpanEvent.CLIENT_RECV);
       child.responsePayloadSize = 
         getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.childSpan.get());

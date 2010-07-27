@@ -32,6 +32,9 @@ import edu.emory.mathcs.backport.java.util.Arrays;
  * points of trace analysis.
  */
 public class SpanAggregator {
+  /**
+   * Class to store the results of span aggregation.
+   */
   public static class SpanAggregationResults {
     /** Spans which have data from client and server. */
     public List<Span> completeSpans; 
@@ -46,6 +49,9 @@ public class SpanAggregator {
     }
   }
   
+  /**
+   * Class to store the results of trace formation.
+   */
   public static class TraceFormationResults {
     /** Traces which were successfully created. */
     public List<Trace> traces;
@@ -67,17 +73,17 @@ public class SpanAggregator {
   static SpanAggregationResults getFullSpans(List<Span> partials) {
     SpanAggregationResults out = new SpanAggregationResults();
     HashMap<Long, Span> seenSpans = new HashMap<Long, Span>();
-    List<SpanEventType> allEvents = (List<SpanEventType>) Arrays.asList(
-        new SpanEventType[] { SpanEventType.CLIENT_RECV, 
-            SpanEventType.CLIENT_SEND, 
-            SpanEventType.SERVER_RECV, 
-            SpanEventType.SERVER_SEND });
+    List<SpanEvent> allEvents = (List<SpanEvent>) Arrays.asList(
+        new SpanEvent[] { SpanEvent.CLIENT_RECV, 
+            SpanEvent.CLIENT_SEND, 
+            SpanEvent.SERVER_RECV, 
+            SpanEvent.SERVER_SEND });
     
     for (Span s: partials) {
-      List<SpanEventType> foundEvents = new LinkedList<SpanEventType>();
+      List<SpanEvent> foundEvents = new LinkedList<SpanEvent>();
       for (TimestampedEvent event: s.events) {
-        if (event.event instanceof SpanEventType) {
-          foundEvents.add((SpanEventType) event.event);
+        if (event.event instanceof SpanEvent) {
+          foundEvents.add((SpanEvent) event.event);
         }
       }
       
@@ -99,10 +105,17 @@ public class SpanAggregator {
           out.incompleteSpans.add(other);
         } else {
           for (TimestampedEvent event: other.events) {
-            if (event.event instanceof SpanEventType) {
-              foundEvents.add((SpanEventType) event.event);
+            if (event.event instanceof SpanEvent) {
+              foundEvents.add((SpanEvent) event.event);
             }
           }
+          if (other.requestorHostname != null) {
+            s.requestorHostname = other.requestorHostname;
+          }
+          if (other.responderHostname != null) {
+            s.responderHostname = other.responderHostname;
+          }
+          
           // We have a complete span between the two
           if (foundEvents.containsAll(allEvents)) {
             for (TimestampedEvent event: other.events) {

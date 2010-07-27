@@ -1,18 +1,14 @@
-/**
- * A Span is our basic unit of tracing. It tracks the critical points
- * of a single RPC call and records other call meta-data. It also
- * allows arbitrary string annotations. Both the client and server create
- * Span objects, each of which is populated with half of the relevant event
- * data. They share a span ID, which allows us to merge them into one complete
- * span later on.
- */
 {
   "protocol" : "AvroTrace",
   "namespace" : "org.apache.avro.ipc.trace",
   "types" : [ {
     "type" : "enum",
-    "name" : "SpanEventType",
+    "name" : "SpanEvent",
     "symbols" : [ "SERVER_RECV", "SERVER_SEND", "CLIENT_RECV", "CLIENT_SEND" ]
+  }, {
+    "type" : "fixed",
+    "name" : "ID",
+    "size" : 8
   }, {
     "type" : "record",
     "name" : "TimestampedEvent",
@@ -21,30 +17,20 @@
       "type" : "long"
     }, {
       "name" : "event",
-      "type" : [ "SpanEventType", "string" ]
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "Query",
-    "fields" : [ {
-      "name" : "startTime",
-      "type" : "long"
-    }, {
-      "name" : "endTime",
-      "type" : "long"
+      "type" : [ "SpanEvent", "string" ]
     } ]
   }, {
     "type" : "record",
     "name" : "Span",
     "fields" : [ {
       "name" : "traceID",
-      "type" : "long"
+      "type" : "ID"
     }, {
       "name" : "spanID",
-      "type" : "long"
+      "type" : "ID"
     }, {
       "name" : "parentSpanID",
-      "type" : "long"
+      "type" : [ "ID", "null" ]
     }, {
       "name" : "messageName",
       "type" : "string"
@@ -55,7 +41,10 @@
       "name" : "responsePayloadSize",
       "type" : "long"
     }, {
-      "name" : "host",
+      "name" : "requestorHostname",
+      "type" : "string"
+    }, {
+      "name" : "responderHostname",
       "type" : "string"
     }, {
       "name" : "events",
@@ -63,22 +52,11 @@
         "type" : "array",
         "items" : "TimestampedEvent"
       }
+    }, {
+      "name" : "complete",
+      "type" : "boolean"
     } ]
   } ],
   "messages" : {
-    "getQueryHandle" : {
-      "request" : [ {
-        "name" : "query",
-        "type" : "Query"
-      } ],
-      "response" : "long"
-    },
-    "getSpanBlock" : {
-      "request" : [ {
-        "name" : "queryHandle",
-        "type" : "long"
-      } ],
-      "response" : "bytes"
-    }
   }
 }

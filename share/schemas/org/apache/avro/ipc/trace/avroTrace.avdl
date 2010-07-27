@@ -9,13 +9,13 @@
 @namespace("org.apache.avro.ipc.trace")
 
 protocol AvroTrace {
-  enum SpanEventType { SERVER_RECV, SERVER_SEND, CLIENT_RECV, CLIENT_SEND }
+  enum SpanEvent { SERVER_RECV, SERVER_SEND, CLIENT_RECV, CLIENT_SEND }
 
   fixed ID(8);
 
   record TimestampedEvent {
     long timeStamp; // Unix time, in nanoseconds
-    union { SpanEventType, string} event;
+    union { SpanEvent, string} event;
   }
 
   record Span {
@@ -26,7 +26,9 @@ protocol AvroTrace {
     long requestPayloadSize;  // Size (bytes) of the request
     long responsePayloadSize; // Size (byts) of the response
     string requestorHostname; // Hostname of requestor
+//    int requestorPort;     // Port of the requestor (currently unused)
     string responderHostname; // Hostname of the responder
+//    int responderPort;     // Port of the responder (currently unused)
     array<TimestampedEvent> events;  // List of critical events
     boolean complete; // Whether includes data from both sides
   }

@@ -151,11 +151,11 @@ public class Trace {
       long clientSend = 0;
       long clientReceive = 0;
       for (TimestampedEvent te: tn.span.events) {
-        if (te.event instanceof SpanEventType) {
-          SpanEventType ev = (SpanEventType) te.event;
-          if (ev.equals(SpanEventType.CLIENT_RECV)) {
+        if (te.event instanceof SpanEvent) {
+          SpanEvent ev = (SpanEvent) te.event;
+          if (ev.equals(SpanEvent.CLIENT_RECV)) {
             clientReceive = te.timeStamp / 1000000;
-          } else if (ev.equals(SpanEventType.CLIENT_SEND)) {
+          } else if (ev.equals(SpanEvent.CLIENT_SEND)) {
             clientSend = te.timeStamp / 1000000;
           }
         }

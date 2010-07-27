@@ -108,6 +108,8 @@ public class TestSpanAggregation {
     Span result = results.completeSpans.get(0);
     assertTrue(result.complete);
     assertTrue(IDsEqual(IDValue(1), result.spanID));
+    assertEquals(new Utf8("requestorHostname"), result.requestorHostname);
+    assertEquals(new Utf8("responderHostname"), result.responderHostname);
     assertNull(result.parentSpanID);
     assertEquals(new Utf8("a"), result.messageName);
   }
@@ -142,6 +144,11 @@ public class TestSpanAggregation {
     List<Span> merged = SpanAggregator.getFullSpans(spans).completeSpans;
     
     assertEquals(5, merged.size());
+    for (Span s: merged) {
+      assertEquals(new Utf8("requestorHostname"), s.requestorHostname);
+      assertEquals(new Utf8("responderHostname"), s.responderHostname);
+    }
+    
     List<Trace> traces = SpanAggregator.getTraces(merged).traces;
     assertEquals(1, traces.size());
     
@@ -156,6 +163,7 @@ public class TestSpanAggregation {
     Span out = new Span();
     out.spanID = spanID;
     out.traceID = traceID;
+    out.requestorHostname = new Utf8("requestorHostname");
     
     if (parentID != null) {
       out.parentSpanID = parentID;
@@ -164,11 +172,11 @@ public class TestSpanAggregation {
     out.complete = false;
     
     TimestampedEvent event1 = new TimestampedEvent();
-    event1.event = SpanEventType.CLIENT_SEND;
+    event1.event = SpanEvent.CLIENT_SEND;
     event1.timeStamp = System.currentTimeMillis() * 1000000;
     
     TimestampedEvent event2 = new TimestampedEvent();
-    event2.event = SpanEventType.CLIENT_RECV;
+    event2.event = SpanEvent.CLIENT_RECV;
     event2.timeStamp = System.currentTimeMillis() * 1000000;
     
     out.events = new GenericData.Array(
@@ -186,6 +194,7 @@ public class TestSpanAggregation {
     Span out = new Span();
     out.spanID = spanID;
     out.traceID = traceID;
+    out.responderHostname = new Utf8("responderHostname");
     
     if (parentID != null) {
       out.parentSpanID = parentID;
@@ -194,11 +203,11 @@ public class TestSpanAggregation {
     out.complete = false;
     
     TimestampedEvent event1 = new TimestampedEvent();
-    event1.event = SpanEventType.SERVER_RECV;
+    event1.event = SpanEvent.SERVER_RECV;
     event1.timeStamp = System.currentTimeMillis();
     
     TimestampedEvent event2 = new TimestampedEvent();
-    event2.event = SpanEventType.SERVER_SEND;
+    event2.event = SpanEvent.SERVER_SEND;
     event2.timeStamp = System.currentTimeMillis();
     
     out.events = new GenericData.Array(
