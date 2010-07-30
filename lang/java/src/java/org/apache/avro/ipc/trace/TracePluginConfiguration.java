@@ -36,7 +36,7 @@ public class TracePluginConfiguration {
    */
   public TracePluginConfiguration() {
     this.traceProb = 0.0;
-    this.port = 12345;
+    this.port = 12335;
     this.clientPort = 12345;
     this.storageType = StorageType.MEMORY;
     this.maxSpans = 10000;

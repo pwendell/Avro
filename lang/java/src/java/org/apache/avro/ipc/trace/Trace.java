@@ -28,7 +28,7 @@ import java.util.Collections;
  * recursive RPC call tree. Each node in a Trace represents a RPC 
  * request/response pair. Each node also has zero or more child nodes.
  */
-public class Trace {
+public class Trace {  
   private TraceNode root;
 
   /**
@@ -57,7 +57,7 @@ public class Trace {
   public TraceNode getRoot() {
     return this.root;
   }
-  
+ 
   /**
    * Provide a hashCode unique to the execution path of this trace.
    * 
@@ -76,7 +76,25 @@ public class Trace {
     @Override
     public int compare(TraceNode tn0, TraceNode tn1) {
       // We sort nodes alphabetically by the message name
-      return tn0.span.messageName.compareTo(tn1.span.messageName);
+      int result = tn0.span.messageName.compareTo(tn1.span.messageName);
+      
+      if (result != 0) {
+        return result;
+      }
+      /* NOTE:
+       * If two spans containing the *same* RPC message share a parent, we need
+       * a way to consistently order them. Here, we use the send time to
+       * break ties. This will only work deterministically for non-async
+       * clients. For asynchronous clients, aggregated statistics based on this 
+       * ordering may be incorrect, since we have no way to disambiguate one
+       * function call from another. 
+       */
+      else {
+        Long tn0SendTime = tn0.extractEventTime(tn0, SpanEvent.CLIENT_SEND);
+        Long tn1SendTime = tn1.extractEventTime(tn1, SpanEvent.CLIENT_SEND);
+        
+        return tn0SendTime.compareTo(tn1SendTime);
+      }
     }
   }
   

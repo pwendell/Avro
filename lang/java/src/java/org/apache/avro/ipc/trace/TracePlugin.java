@@ -28,7 +28,9 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.ipc.AvroRemoteException;
 import org.apache.avro.ipc.HttpServer;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.RPCPlugin;
@@ -186,6 +188,20 @@ public class TracePlugin extends RPCPlugin {
     
     public TraceResponder(SpanStorage spanStorage) {
       this.spanStorage = spanStorage;
+    }
+
+    @Override
+    public GenericArray<Span> getAllSpans() throws AvroRemoteException {
+      List<Span> spans = this.spanStorage.getAllSpans();
+      GenericData.Array<Span> out;
+      synchronized (spans) { 
+        out = new GenericData.Array<Span>(spans.size(), 
+          Schema.createArray(Span.SCHEMA$));
+        for (Span s: spans) {
+          out.add(s);
+        }
+      }
+      return out;
     }
   }
   

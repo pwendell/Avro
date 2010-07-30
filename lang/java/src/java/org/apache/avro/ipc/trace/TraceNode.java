@@ -42,4 +42,54 @@ class TraceNode {
   public TraceNode() {
     
   }
+ 
+  /** 
+   * Return the time stamp associated with a particular SpanEvent in this
+   * Trace Node. Return -1 if the TraceNode's Span did not contain that event.
+   */
+  public long extractEventTime(TraceNode tn, SpanEvent e) {
+    for (TimestampedEvent te: tn.span.events) {
+      if ((te.event instanceof SpanEvent) && 
+          (SpanEvent) te.event == e) {
+        return te.timeStamp;
+      }
+    }
+    return -1;
+  }
+ 
+  /**
+   * Return time delta between { @link SpanEvent.CLIENT_SEND } and 
+   * { @link SpanEvent.SERVER_RECV }. This may be negative or zero in the 
+   * case of clock skew.
+   */
+  public long getPreNetworkTime() {
+    long clientSend = extractEventTime(this, SpanEvent.CLIENT_SEND);
+    long serverReceive = extractEventTime(this, SpanEvent.SERVER_RECV);
+    
+    return serverReceive - clientSend;
+  }
+  
+  /**
+   * Return time delta between { @link SpanEvent.SERVER_SEND } and 
+   * { @link SpanEvent.CLIENT_RECV }. This may be negative or zero in the 
+   * case of clock skew.
+   */
+  public long getPostNetworkTime() {
+    long serverSend = extractEventTime(this, SpanEvent.SERVER_SEND);
+    long clientReceive = extractEventTime(this, SpanEvent.CLIENT_RECV);
+    
+    return clientReceive - serverSend;
+  }
+  
+  /**
+   * Return time delta between { @link SpanEvent.SERVER_RECV } and 
+   * { @link SpanEvent.SERVER_SEND}.
+   */
+  public long getProcessTime() {
+    long serverReceive = extractEventTime(this, SpanEvent.SERVER_RECV);
+    long serverSend = extractEventTime(this, SpanEvent.SERVER_SEND);
+    
+    return serverSend - serverReceive;
+  }
+  
 }

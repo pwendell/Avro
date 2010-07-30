@@ -42,10 +42,10 @@
       "type" : "long"
     }, {
       "name" : "requestorHostname",
-      "type" : "string"
+      "type" : [ "string", "null" ]
     }, {
       "name" : "responderHostname",
-      "type" : "string"
+      "type" : [ "string", "null" ]
     }, {
       "name" : "events",
       "type" : {
@@ -58,5 +58,12 @@
     } ]
   } ],
   "messages" : {
+    "getAllSpans" : {
+      "request" : [ ],
+      "response" : {
+        "type" : "array",
+        "items" : "Span"
+      }
+    }
   }
 }

@@ -346,7 +346,11 @@ public class TestBasicTracing {
     HttpTransceiver trans = new HttpTransceiver(
         new URL("http://localhost:" + Integer.parseInt(args[0])));
     GenericRequestor req = new GenericRequestor(protocol, trans); 
-    
+    TracePluginConfiguration clientConf = new TracePluginConfiguration();
+    clientConf.clientPort = 12346;
+    clientConf.port = 12336;
+    clientConf.traceProb = 1.0;
+    req.addRPCPlugin(new TracePlugin(clientConf)); 
     
     while(true) {
       Thread.sleep(1000);

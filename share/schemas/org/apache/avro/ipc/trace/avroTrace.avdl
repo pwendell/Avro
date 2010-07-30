@@ -25,11 +25,13 @@ protocol AvroTrace {
     string messageName;       // Function call represented
     long requestPayloadSize;  // Size (bytes) of the request
     long responsePayloadSize; // Size (byts) of the response
-    string requestorHostname; // Hostname of requestor
+    union { string, null} requestorHostname; // Hostname of requestor
 //    int requestorPort;     // Port of the requestor (currently unused)
-    string responderHostname; // Hostname of the responder
+    union { string, null } responderHostname; // Hostname of the responder
 //    int responderPort;     // Port of the responder (currently unused)
     array<TimestampedEvent> events;  // List of critical events
     boolean complete; // Whether includes data from both sides
   }
+
+  array<Span> getAllSpans();
 }

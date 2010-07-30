@@ -41,18 +41,23 @@ public class InMemorySpanStorage implements SpanStorage {
   }
   
   @Override
-  public void addSpan(Span s) {
-    this.spans.add(s);
-    if (this.spans.size() > this.maxSpans) {
-      this.spans.removeFirst();
+  public synchronized void addSpan(Span s) {
+    synchronized (this.spans) {  
+      this.spans.add(s);
+      if (this.spans.size() > this.maxSpans) {
+        this.spans.removeFirst();
+      }
     }
   }
 
   @Override
   public void setMaxSpans(long maxSpans) {
     this.maxSpans = maxSpans;
-    while (this.spans.size() > maxSpans) {
-      this.spans.removeFirst();
+    
+    synchronized (this.spans) {
+      while (this.spans.size() > maxSpans) {
+        this.spans.removeFirst();
+      }
     }
   }
 
