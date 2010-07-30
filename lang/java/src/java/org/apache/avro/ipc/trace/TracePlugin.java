@@ -58,7 +58,6 @@ import org.slf4j.LoggerFactory;
  */
 public class TracePlugin extends RPCPlugin {
   final private static Random RANDOM = new Random();
-  private static Utf8 HOSTNAME;
   private static final Logger LOG = LoggerFactory.getLogger(TracePlugin.class);
   public static enum StorageType { MEMORY, DISK };
   
@@ -73,116 +72,7 @@ public class TracePlugin extends RPCPlugin {
   private static final Utf8 SPAN_ID_KEY = new Utf8("spanID");
   private static final Utf8 PARENT_SPAN_ID_KEY = new Utf8("parentSpanID");
   
-  // Get the size of an RPC payload
-  private static int getPayloadSize(List<ByteBuffer> payload) {
-    if (payload == null) {
-      return 0;
-    }
-    int size = 0;
-    for (ByteBuffer bb: payload) {
-      size = size + bb.limit();
-    }
-    return size;
-  }
-  
-  /**
-   * Create a span without any events. If traceID or spanID is null, randomly
-   * generate them. If parentSpanID is null, assume this is a root span.
-   */
-  private Span createEventlessSpan(ID traceID, ID spanID, ID parentSpanID) {
-    Span span = new Span();
-    span.complete = false;
-    
-    if (traceID == null) {
-      byte[] traceIDBytes = new byte[8];
-      RANDOM.nextBytes(traceIDBytes);
-      span.traceID = new ID();
-      span.traceID.bytes(traceIDBytes);
-    } else {
-      span.traceID = new ID();
-      span.traceID.bytes(traceID.bytes().clone());
-    }
-    
-    if (spanID == null) {
-      byte[] spanIDBytes = new byte[8];
-      RANDOM.nextBytes(spanIDBytes);
-      span.spanID = new ID();
-      span.spanID.bytes(spanIDBytes);
-    } else {
-      span.spanID = new ID();
-      span.spanID.bytes(spanID.bytes().clone());
-    }
 
-    if (parentSpanID != null) {
-      span.parentSpanID = new ID();
-      span.parentSpanID.bytes(parentSpanID.bytes().clone());
-    }
-    
-    span.events = new GenericData.Array<TimestampedEvent>(
-        10, Schema.createArray(TimestampedEvent.SCHEMA$));
-    span.requestorHostname = HOSTNAME;
-    
-    return span;
-  }
-  
-  // Add a timestampted event to this span
-  private static void addEvent(Span span, SpanEvent eventType) {
-    TimestampedEvent ev = new TimestampedEvent();
-    ev.event = eventType;
-    ev.timeStamp = System.currentTimeMillis() * 1000000;
-    span.events.add(ev);
-  }
-  
-  /**
-   * Get the long value from a given ID object.
-   */
-  public static long longValue(ID in) {
-    if (in == null) { 
-      throw new IllegalArgumentException("ID cannot be null");
-    }
-    if (in.bytes() == null) {
-      throw new IllegalArgumentException("ID cannot be empty");
-    }
-    if (in.bytes().length != 8) {
-      throw new IllegalArgumentException("ID must be 8 bytes");
-    }
-    ByteBuffer buff = ByteBuffer.wrap(in.bytes());
-    return buff.getLong();
-  }
-  
-  /**
-   * Get an ID associated with a given long value. 
-   */
-  public static ID IDValue(long in) {
-    byte[] bArray = new byte[8];
-    ByteBuffer bBuffer = ByteBuffer.wrap(bArray);
-    LongBuffer lBuffer = bBuffer.asLongBuffer();
-    lBuffer.put(0, in);
-    ID out = new ID();
-    out.bytes(bArray);
-    return out;
-  }
-  
-  /**
-   * Verify the equality of ID objects. Both being null references is
-   * considered equal.
-   */
-  public static boolean IDsEqual(ID a, ID b) {
-    if (a == null && b == null) { return true; }
-    if (a == null || b == null) { return false; }
-    
-    byte[] aBytes = a.bytes();
-    byte[] bBytes = b.bytes();
-    
-    if (aBytes.length != bBytes.length) { return false; }
-    if (aBytes == null && bBytes == null) { return true; }
-    if (aBytes == null || bBytes == null) { return false; }
-    
-    for (int i = 0; i < aBytes.length; i++) {
-      if (aBytes[i] != bBytes[i]) { return false; }
-    }
-    return true;
-  }
   class TraceResponder implements AvroTrace {
     private SpanStorage spanStorage;
     
@@ -258,12 +148,6 @@ public class TracePlugin extends RPCPlugin {
     
     this.storage.setMaxSpans(maxSpans);
     
-    try {
-      HOSTNAME = new Utf8(InetAddress.getLocalHost().getHostName());
-    } catch (UnknownHostException e) {
-      HOSTNAME = new Utf8("unknown");
-    }
-    
     // Start serving span data
     responder = new SpecificResponder(
         AvroTrace.PROTOCOL, new TraceResponder(this.storage)); 
@@ -282,13 +166,14 @@ public class TracePlugin extends RPCPlugin {
     if ((this.currentSpan.get() == null) && 
         (RANDOM.nextFloat() < this.traceProb) && enabled) {
       // Start new trace
-      Span span = createEventlessSpan(null, null, null);
+      Span span = Util.createEventlessSpan(null, null, null);
       this.childSpan.set(span);
     }
     
     if ((this.currentSpan.get() != null) && enabled) {
       Span currSpan = this.currentSpan.get();
-      Span span = createEventlessSpan(currSpan.traceID, null, currSpan.spanID);   
+      Span span = Util.createEventlessSpan(
+          currSpan.traceID, null, currSpan.spanID);   
       this.childSpan.set(span);
     }
     
@@ -328,7 +213,7 @@ public class TracePlugin extends RPCPlugin {
       ID traceID = new ID();
       traceID.bytes(meta.get(TRACE_ID_KEY).array());
       
-      Span span = createEventlessSpan(traceID, spanID, parentSpanID);
+      Span span = Util.createEventlessSpan(traceID, spanID, parentSpanID);
       
       span.events = new GenericData.Array<TimestampedEvent>(
           100, Schema.createArray(TimestampedEvent.SCHEMA$));
@@ -343,10 +228,11 @@ public class TracePlugin extends RPCPlugin {
   public void clientSendRequest(RPCContext context) {
     if (this.childSpan.get() != null) {
       Span child = this.childSpan.get();
-      addEvent(child, SpanEvent.CLIENT_SEND);
+      Util.addEvent(child, SpanEvent.CLIENT_SEND);
       child.messageName = new Utf8(
           context.getMessage().getName());
-      child.requestPayloadSize = getPayloadSize(context.getRequestPayload());
+      child.requestPayloadSize = Util.getPayloadSize(
+          context.getRequestPayload());
     }
   }
  
@@ -354,10 +240,11 @@ public class TracePlugin extends RPCPlugin {
   public void serverReceiveRequest(RPCContext context) {
     if (this.currentSpan.get() != null) {
       Span current = this.currentSpan.get();
-      addEvent(current, SpanEvent.SERVER_RECV);
+      Util.addEvent(current, SpanEvent.SERVER_RECV);
       current.messageName = new Utf8(
           context.getMessage().getName());
-      current.requestPayloadSize = getPayloadSize(context.getRequestPayload());
+      current.requestPayloadSize = Util.getPayloadSize(
+          context.getRequestPayload());
     }
   }
   
@@ -365,9 +252,9 @@ public class TracePlugin extends RPCPlugin {
   public void serverSendResponse(RPCContext context) {
     if (this.currentSpan.get() != null) {
       Span current = this.currentSpan.get();
-      addEvent(current, SpanEvent.SERVER_SEND);
+      Util.addEvent(current, SpanEvent.SERVER_SEND);
       current.responsePayloadSize = 
-        getPayloadSize(context.getResponsePayload());
+        Util.getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.currentSpan.get());
       this.currentSpan.set(null);
     }
@@ -377,9 +264,9 @@ public class TracePlugin extends RPCPlugin {
   public void clientReceiveResponse(RPCContext context) {
     if (this.childSpan.get() != null) {
       Span child = this.childSpan.get();
-      addEvent(child, SpanEvent.CLIENT_RECV);
+      Util.addEvent(child, SpanEvent.CLIENT_RECV);
       child.responsePayloadSize = 
-        getPayloadSize(context.getResponsePayload());
+        Util.getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.childSpan.get());
       this.childSpan.set(null);
     }

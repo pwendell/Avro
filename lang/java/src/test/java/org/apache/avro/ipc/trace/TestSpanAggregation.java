@@ -21,8 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.apache.avro.ipc.trace.TracePlugin.IDValue;
-import static org.apache.avro.ipc.trace.TracePlugin.IDsEqual;
+import static org.apache.avro.ipc.trace.Util.IDValue;
+import static org.apache.avro.ipc.trace.Util.IDsEqual;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -152,7 +152,7 @@ public class TestSpanAggregation {
     List<Trace> traces = SpanAggregator.getTraces(merged).traces;
     assertEquals(1, traces.size());
     
-    assertEquals("Trace: a-->(b-->(cd-->(e)))", traces.get(0).printBrief());
+    assertEquals("Trace: (a (b (c) (d (e))))", traces.get(0).printBrief());
     
   }
   

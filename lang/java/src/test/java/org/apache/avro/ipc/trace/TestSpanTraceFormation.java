@@ -26,6 +26,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.junit.Test;
 
@@ -34,23 +36,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testSpanEquality() {
     Span root = new Span();
-    root.spanID = TracePlugin.IDValue(10);
+    root.spanID = Util.IDValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = TracePlugin.IDValue(11);
-    a.parentSpanID = TracePlugin.IDValue(10);
+    a.spanID = Util.IDValue(11);
+    a.parentSpanID = Util.IDValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = TracePlugin.IDValue(12);
-    b.parentSpanID = TracePlugin.IDValue(10);
+    b.spanID = Util.IDValue(12);
+    b.parentSpanID = Util.IDValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = TracePlugin.IDValue(13);
-    c.parentSpanID = TracePlugin.IDValue(10);
+    c.spanID = Util.IDValue(13);
+    c.parentSpanID = Util.IDValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();
@@ -61,18 +63,18 @@ public class TestSpanTraceFormation {
     Trace trace1 = Trace.extractTrace(spans);
     
     Span d = new Span();
-    d.spanID = TracePlugin.IDValue(11);
-    d.parentSpanID = TracePlugin.IDValue(10);
+    d.spanID = Util.IDValue(11);
+    d.parentSpanID = Util.IDValue(10);
     d.messageName = new Utf8("childCall1");
     
     Span e = new Span();
-    e.spanID = TracePlugin.IDValue(12);
-    e.parentSpanID = TracePlugin.IDValue(10);
+    e.spanID = Util.IDValue(12);
+    e.parentSpanID = Util.IDValue(10);
     e.messageName = new Utf8("childCall2");
     
     Span f = new Span();
-    f.spanID = TracePlugin.IDValue(13);
-    f.parentSpanID = TracePlugin.IDValue(10);
+    f.spanID = Util.IDValue(13);
+    f.parentSpanID = Util.IDValue(10);
     f.messageName = new Utf8("childCall3");
     
     spans.clear();
@@ -89,23 +91,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testSpanEquality2() {
     Span root = new Span();
-    root.spanID = TracePlugin.IDValue(10);
+    root.spanID = Util.IDValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = TracePlugin.IDValue(11);
-    a.parentSpanID = TracePlugin.IDValue(10);
+    a.spanID = Util.IDValue(11);
+    a.parentSpanID = Util.IDValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = TracePlugin.IDValue(12);
-    b.parentSpanID = TracePlugin.IDValue(10);
+    b.spanID = Util.IDValue(12);
+    b.parentSpanID = Util.IDValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = TracePlugin.IDValue(13);
-    c.parentSpanID = TracePlugin.IDValue(10);
+    c.spanID = Util.IDValue(13);
+    c.parentSpanID = Util.IDValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();
@@ -116,23 +118,23 @@ public class TestSpanTraceFormation {
     Trace trace1 = Trace.extractTrace(spans);
     
     Span d = new Span();
-    d.spanID = TracePlugin.IDValue(11);
-    d.parentSpanID = TracePlugin.IDValue(10);
+    d.spanID = Util.IDValue(11);
+    d.parentSpanID = Util.IDValue(10);
     d.messageName = new Utf8("childCall1");
     
     Span e = new Span();
-    e.spanID = TracePlugin.IDValue(12);
-    e.parentSpanID = TracePlugin.IDValue(10);
+    e.spanID = Util.IDValue(12);
+    e.parentSpanID = Util.IDValue(10);
     e.messageName = new Utf8("childCall2");
     
     Span f = new Span();
-    f.spanID = TracePlugin.IDValue(13);
-    f.parentSpanID = TracePlugin.IDValue(10);
+    f.spanID = Util.IDValue(13);
+    f.parentSpanID = Util.IDValue(10);
     f.messageName = new Utf8("childCall3");
     
     Span g = new Span();
-    g.spanID = TracePlugin.IDValue(14);
-    g.parentSpanID = TracePlugin.IDValue(13);
+    g.spanID = Util.IDValue(14);
+    g.parentSpanID = Util.IDValue(13);
     g.messageName = new Utf8("childCall4");
     
     spans.clear();
@@ -144,6 +146,30 @@ public class TestSpanTraceFormation {
     Trace trace2 = Trace.extractTrace(spans);
     
     assertFalse(trace1.executionPathHash() == trace2.executionPathHash());
+  }
+  
+  /** Create a span with bogus timing events. */
+  public static Span createFullSpan(Long id, Long parentID, String messageName) {
+    Span out = new Span();
+    out.spanID = Util.IDValue(id);
+    if (parentID != null) {
+      out.parentSpanID = Util.IDValue(parentID);
+    }
+    out.messageName = new Utf8(messageName);
+    
+    out.events = new GenericData.Array<TimestampedEvent>(
+        4, Schema.createArray(TimestampedEvent.SCHEMA$));
+    
+    for (SpanEvent ev: SpanEvent.values()) {
+      TimestampedEvent newEvent = new TimestampedEvent();
+      newEvent.timeStamp = System.currentTimeMillis() * 1000000;
+      newEvent.event = ev;
+      out.events.add(newEvent);
+    }
+    
+    out.complete = true;
+    
+    return out;
   }
   
   /**
@@ -162,55 +188,16 @@ public class TestSpanTraceFormation {
   @Test
   public void testSpanEquality3() {
     
-    Span a = new Span();
-    a.spanID = TracePlugin.IDValue(1);
-    a.parentSpanID = null;
-    a.messageName = new Utf8("a");
-    
-    Span b1 = new Span();
-    b1.spanID = TracePlugin.IDValue(2);
-    b1.parentSpanID = TracePlugin.IDValue(1);
-    b1.messageName = new Utf8("b");
-    
-    Span b2 = new Span();
-    b2.spanID = TracePlugin.IDValue(3);
-    b2.parentSpanID = TracePlugin.IDValue(1);
-    b2.messageName = new Utf8("b");
-    
-    Span d = new Span();
-    d.spanID = TracePlugin.IDValue(4);
-    d.parentSpanID = TracePlugin.IDValue(1);
-    d.messageName = new Utf8("d");
-    
-    Span e = new Span();
-    e.spanID = TracePlugin.IDValue(5);
-    e.parentSpanID = TracePlugin.IDValue(4);
-    e.messageName = new Utf8("e");
-    
-    Span f = new Span();
-    f.spanID = TracePlugin.IDValue(6);
-    f.parentSpanID = TracePlugin.IDValue(5);
-    f.messageName = new Utf8("f");
-    
-    Span g1 = new Span();
-    g1.spanID = TracePlugin.IDValue(7);
-    g1.parentSpanID = TracePlugin.IDValue(6);
-    g1.messageName = new Utf8("g");
-    
-    Span g2 = new Span();
-    g2.spanID = TracePlugin.IDValue(8);
-    g2.parentSpanID = TracePlugin.IDValue(6);
-    g2.messageName = new Utf8("g");
-    
-    Span i1 = new Span();
-    i1.spanID = TracePlugin.IDValue(9);
-    i1.parentSpanID = TracePlugin.IDValue(7);
-    i1.messageName = new Utf8("i");
-    
-    Span i2 = new Span();
-    i2.spanID = TracePlugin.IDValue(10);
-    i2.parentSpanID = TracePlugin.IDValue(8);
-    i2.messageName = new Utf8("i");
+    Span a = createFullSpan((long) 1, null, "a");
+    Span b1 = createFullSpan((long) 2, (long) 1, "b");
+    Span b2 = createFullSpan((long) 3, (long) 1, "b");
+    Span d = createFullSpan((long) 4, (long) 1, "d");
+    Span e = createFullSpan((long) 5, (long) 4, "e");
+    Span f = createFullSpan((long) 6, (long) 5, "f");
+    Span g1 = createFullSpan((long) 7, (long) 6, "g");
+    Span g2 = createFullSpan((long) 8, (long) 6, "g");
+    Span i1 = createFullSpan((long) 9, (long) 7, "i");
+    Span i2 = createFullSpan((long) 10, (long) 8, "i");
     
     List<Span> spans = new LinkedList<Span>();
     spans.addAll(Arrays.asList(new Span[] {a, b1, b2, d, e, f, g1, g2, i1, i2}));
@@ -238,23 +225,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testBasicTraceFormation() {
     Span root = new Span();
-    root.spanID = TracePlugin.IDValue(10);
+    root.spanID = Util.IDValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = TracePlugin.IDValue(11);
-    a.parentSpanID = TracePlugin.IDValue(10);
+    a.spanID = Util.IDValue(11);
+    a.parentSpanID = Util.IDValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = TracePlugin.IDValue(12);
-    b.parentSpanID = TracePlugin.IDValue(10);
+    b.spanID = Util.IDValue(12);
+    b.parentSpanID = Util.IDValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = TracePlugin.IDValue(13);
-    c.parentSpanID = TracePlugin.IDValue(10);
+    c.spanID = Util.IDValue(13);
+    c.parentSpanID = Util.IDValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();

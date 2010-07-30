@@ -17,10 +17,11 @@
  */
 package org.apache.avro.ipc.trace;
 
-import static org.apache.avro.ipc.trace.TracePlugin.IDsEqual;
-import static org.apache.avro.ipc.trace.TracePlugin.longValue;
+import static org.apache.avro.ipc.trace.Util.IDsEqual;
+import static org.apache.avro.ipc.trace.Util.longValue;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,18 +75,10 @@ public class SpanAggregator {
     SpanAggregationResults out = new SpanAggregationResults();
     HashMap<Long, Span> seenSpans = new HashMap<Long, Span>();
     List<SpanEvent> allEvents = (List<SpanEvent>) Arrays.asList(
-        new SpanEvent[] { SpanEvent.CLIENT_RECV, 
-            SpanEvent.CLIENT_SEND, 
-            SpanEvent.SERVER_RECV, 
-            SpanEvent.SERVER_SEND });
+        SpanEvent.values());
     
     for (Span s: partials) {
-      List<SpanEvent> foundEvents = new LinkedList<SpanEvent>();
-      for (TimestampedEvent event: s.events) {
-        if (event.event instanceof SpanEvent) {
-          foundEvents.add((SpanEvent) event.event);
-        }
-      }
+      EnumSet<SpanEvent> foundEvents = Util.getAllEvents(s);
       
       // Span has complete data already
       if (foundEvents.containsAll(allEvents)) {
@@ -93,22 +86,18 @@ public class SpanAggregator {
       } 
       // We haven't seen other half yet
       else if (!seenSpans.containsKey(
-          TracePlugin.longValue(s.spanID))) {
-        seenSpans.put(TracePlugin.longValue(s.spanID), s);
+          Util.longValue(s.spanID))) {
+        seenSpans.put(Util.longValue(s.spanID), s);
       }    
       // We have seen other half
       else {
-        Span other = seenSpans.remove(TracePlugin.longValue(s.spanID));  
+        Span other = seenSpans.remove(Util.longValue(s.spanID));  
         if (!other.messageName.equals(s.messageName) ||
             !IDsEqual(other.parentSpanID, s.parentSpanID)) {
           out.incompleteSpans.add(s);
           out.incompleteSpans.add(other);
         } else {
-          for (TimestampedEvent event: other.events) {
-            if (event.event instanceof SpanEvent) {
-              foundEvents.add((SpanEvent) event.event);
-            }
-          }
+          foundEvents.addAll(Util.getAllEvents(other));
           if (other.requestorHostname != null) {
             s.requestorHostname = other.requestorHostname;
           }
@@ -152,13 +141,13 @@ public class SpanAggregator {
     
     TraceFormationResults out = new TraceFormationResults();
     
-    for (Long traceID : traces.keySet()) {
-       Trace trace = Trace.extractTrace(traces.get(traceID));
+    for (List<Span> spanSet : traces.values()) {
+       Trace trace = Trace.extractTrace(spanSet);
        if (trace != null) {
          out.traces.add(trace);
        }
        else {
-         out.rejectedSpans.addAll(traces.get(traceID));
+         out.rejectedSpans.addAll(spanSet);
        }
     } 
     return out;

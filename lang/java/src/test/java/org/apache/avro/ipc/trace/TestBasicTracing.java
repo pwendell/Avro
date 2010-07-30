@@ -258,7 +258,7 @@ public class TestBasicTracing {
     // Verify event counts and trace ID propagation
     for (Span s: aPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertTrue(TracePlugin.IDsEqual(traceID, s.traceID));
+      assertTrue(Util.IDsEqual(traceID, s.traceID));
       assertFalse(s.complete);
       rootSpanID = s.spanID;
     }
@@ -287,13 +287,13 @@ public class TestBasicTracing {
     
     boolean firstFound = false, secondFound = false, thirdFound = false;
     for (Span s: bPlugin.storage.getAllSpans()) {
-      if (TracePlugin.IDsEqual(s.spanID, firstSpanID)) {
+      if (Util.IDsEqual(s.spanID, firstSpanID)) {
         firstFound = true;
       }
-      else if (TracePlugin.IDsEqual(s.spanID, secondSpanID)) {
+      else if (Util.IDsEqual(s.spanID, secondSpanID)) {
         secondFound = true;
       }
-      else if (TracePlugin.IDsEqual(s.spanID, thirdSpanID)) {
+      else if (Util.IDsEqual(s.spanID, thirdSpanID)) {
         thirdFound = true;
       }
     }

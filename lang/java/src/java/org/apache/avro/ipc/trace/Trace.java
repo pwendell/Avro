@@ -39,19 +39,6 @@ public class Trace {
   }
   
   /**
-   * Empty constructor.
-   */
-  public Trace() {
-  }
-  
-  /**
-   * Set the root node of this trace.
-   */
-  public void setRoot(TraceNode root) {
-    this.root = root;
-  }
-  
-  /**
    * Return the root node of this trace.
    */
   public TraceNode getRoot() {
@@ -111,28 +98,33 @@ public class Trace {
    *     y--z
    *     
    * is encoded as:
-   * w-->(xy-->(z))
+   * (w (x) (y (z)))
    */
   public String printBrief() {
     if (this.root == null) { return "Trace: <empty>"; }
-    String out = "Trace: ";
-    out += this.root.span.messageName;
+    String out = "Trace: (";
+    out += this.root.span.messageName + " ";
     out += printBriefRecurse(root.children);
+    out += ")";
     return out;
   }
   
   private String printBriefRecurse(List<TraceNode> children) {
     String out = "";
-    out += "-->(";
     // We sort so equivalent traces always print identically 
     Collections.sort(children, new NodeComparator());
-    for (TraceNode tn : children) {
-     out += tn.span.messageName;
-     if (tn.children.size() > 0) {
-       out += printBriefRecurse(tn.children);
-     }
+    for (int i = 0; i < children.size(); i++) {
+      TraceNode tn = children.get(i);
+      out += "(" + tn.span.messageName;
+      if (tn.children.size() > 0) {
+        out += " ";
+        out += printBriefRecurse(tn.children);
+      }
+      out += ")";
+      if (i != children.size() - 1) {
+        out += " ";
+      }
     }
-    out += ")";
     return out;
   }
   
@@ -210,60 +202,45 @@ public class Trace {
      */
     Span rootSpan = null;
     
-    Trace out = new Trace();
-    
     for (Span s: spans) {
-      spanRef.put(TracePlugin.longValue(s.spanID), s);
+      spanRef.put(Util.longValue(s.spanID), s);
       if (s.parentSpanID == null) {
         rootSpan = s;
-      }
-      else {
-        if (children.get(TracePlugin.longValue(s.parentSpanID)) == null) {
+      } else {
+        if (children.get(Util.longValue(s.parentSpanID)) == null) {
           LinkedList<Long> list = new LinkedList<Long>();
-          list.add(TracePlugin.longValue(s.spanID));
-          children.put(TracePlugin.longValue(s.parentSpanID), list);
+          list.add(Util.longValue(s.spanID));
+          children.put(Util.longValue(s.parentSpanID), list);
         } else {
-          children.get(TracePlugin.longValue(s.parentSpanID)).add(
-              TracePlugin.longValue(s.spanID));
+          children.get(Util.longValue(s.parentSpanID)).add(
+              Util.longValue(s.spanID));
         }
       }
     }
     if (rootSpan == null) { // We never found a root
       return null;
     }
-    Long currentSpanID = TracePlugin.longValue(rootSpan.spanID); // get root id
-    TraceNode rootNode = new TraceNode();
-    rootNode.span = rootSpan;
-    rootNode.children = getChildren(children, spanRef, currentSpanID, out);
-    out.setRoot(rootNode);
-    return out; 
+    TraceNode rootNode = getNode(rootSpan, spanRef, children);
+    return new Trace(rootNode);
   }
   
   /**
    * Recursive helper method to create a span tree. 
    */
-  private static LinkedList<TraceNode> getChildren(
-      HashMap<Long, List<Long>> children, HashMap<Long, Span> spanRef, 
-      long currentSpanID, Trace out) {
-    Span currentSpan = spanRef.get(currentSpanID);
+  private static TraceNode getNode(
+      Span s, HashMap<Long, Span> spanRef, HashMap<Long, List<Long>> children) {
+    TraceNode out = new TraceNode();
+    out.span = s;
+    out.children = new LinkedList<TraceNode>();
     
-    if (currentSpan == null) { return null; } // invalid span referenced
-    
-    LinkedList<TraceNode> childNodes = new LinkedList<TraceNode>();
-    List<Long> kids = children.get(currentSpanID);
-    
-    if (kids == null) { return childNodes; } // no children (base case) 
+    List<Long> kids = children.get(Util.longValue(s.spanID));
+    if (kids == null) { return out; } // no children (base case) 
     
     for (long childID: kids) {
-      TraceNode childNode = new TraceNode();
-      childNode.span = spanRef.get(childID);
-      
-      if (childNode.span == null) { return null; } // invalid span reference
-      
-      childNode.children = getChildren(children, spanRef, 
-          TracePlugin.longValue(childNode.span.spanID), out);
-      childNodes.add(childNode);
+      Span childSpan = spanRef.get(childID);
+      if (childSpan == null) { return null; } // invalid span reference
+      out.children.add(getNode(childSpan, spanRef, children));
     }
-    return childNodes;
+    return out;
   }
 }

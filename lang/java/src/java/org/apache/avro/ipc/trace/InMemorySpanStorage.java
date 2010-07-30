@@ -24,9 +24,8 @@ import java.util.List;
 /**
  * Example implementation of SpanStorage which keeps spans in memory.
  * 
- * This is designed as a prototype for demonstration and testing. It should only 
- * be used in production settings if very small amount of tracing data
- * is being recorded.
+ * This is designed as a prototype for demonstration and testing. It should
+ * not be used in production settings.
  *
  */
 public class InMemorySpanStorage implements SpanStorage {
@@ -41,7 +40,7 @@ public class InMemorySpanStorage implements SpanStorage {
   }
   
   @Override
-  public synchronized void addSpan(Span s) {
+  public void addSpan(Span s) {
     synchronized (this.spans) {  
       this.spans.add(s);
       if (this.spans.size() > this.maxSpans) {
@@ -61,8 +60,9 @@ public class InMemorySpanStorage implements SpanStorage {
     }
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public List<Span> getAllSpans() {
-    return this.spans;
+    return (LinkedList<Span>) this.spans.clone();
   }
 }
