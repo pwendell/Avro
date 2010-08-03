@@ -315,9 +315,13 @@ public class TestBasicTracing {
     server1.close();
     server2.close();
     server3.close();
+    aPlugin.httpServer.close();
     aPlugin.clientFacingServer.stop();
+    bPlugin.httpServer.close();
     bPlugin.clientFacingServer.stop();
+    cPlugin.httpServer.close();
     cPlugin.clientFacingServer.stop();
+    dPlugin.httpServer.close();
     dPlugin.clientFacingServer.stop();
     
   }
