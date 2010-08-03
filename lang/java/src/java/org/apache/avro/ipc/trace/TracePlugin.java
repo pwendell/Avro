@@ -19,10 +19,7 @@
 package org.apache.avro.ipc.trace;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.LongBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;

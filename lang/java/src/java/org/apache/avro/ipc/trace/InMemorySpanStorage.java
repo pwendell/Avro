@@ -29,7 +29,7 @@ import java.util.List;
  *
  */
 public class InMemorySpanStorage implements SpanStorage {
-  private static long DEFAULT_MAX_SPANS = 10000;
+  private static final long DEFAULT_MAX_SPANS = 10000;
   
   protected LinkedList<Span> spans;
   private long maxSpans;

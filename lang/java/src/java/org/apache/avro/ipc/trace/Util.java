@@ -35,10 +35,10 @@ import org.apache.avro.util.Utf8;
  * Utility methods for common tasks in Avro tracing. Mostly consists of
  * static methods which we can't put in auto-generated classes.
  */
-public class Util {
+class Util {
   final private static Random RANDOM = new Random();
-  final public static int NANOS_PER_MILI = 1000000;
-  private static Utf8 HOSTNAME;
+  final private static int NANOS_PER_MILI = 1000000;
+  private static Utf8 hostname;
   
   /**
    * Get all SpanEvents contained in Span s.
@@ -104,14 +104,14 @@ public class Util {
     span.events = new GenericData.Array<TimestampedEvent>(
         10, Schema.createArray(TimestampedEvent.SCHEMA$));
     
-    if (HOSTNAME == null) {
+    if (hostname == null) {
       try {
-        HOSTNAME = new Utf8(InetAddress.getLocalHost().toString());
+        hostname = new Utf8(InetAddress.getLocalHost().toString());
       } catch (UnknownHostException e) {
-        HOSTNAME = new Utf8("Unknown");
+        hostname = new Utf8("Unknown");
       }
     }
-    span.requestorHostname = HOSTNAME;
+    span.requestorHostname = hostname;
     return span;
   }
   
@@ -145,7 +145,7 @@ public class Util {
   /**
    * Get an ID associated with a given long value. 
    */
-  public static ID IDValue(long in) {
+  public static ID idValue(long in) {
     byte[] bArray = new byte[8];
     ByteBuffer bBuffer = ByteBuffer.wrap(bArray);
     LongBuffer lBuffer = bBuffer.asLongBuffer();
@@ -159,7 +159,7 @@ public class Util {
    * Verify the equality of ID objects. Both being null references is
    * considered equal.
    */
-  public static boolean IDsEqual(ID a, ID b) {
+  public static boolean idsEqual(ID a, ID b) {
     if (a == null && b == null) { return true; }
     if (a == null || b == null) { return false; }
     
