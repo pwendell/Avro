@@ -28,6 +28,8 @@ import java.util.List;
  *
  */
 public interface SpanStorage {
+  public static final long DEFAULT_MAX_SPANS = 10000;
+  
   /**
    * Add a span. 
    * @param s

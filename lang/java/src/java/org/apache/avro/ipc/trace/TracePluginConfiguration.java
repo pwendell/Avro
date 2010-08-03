@@ -30,6 +30,7 @@ public class TracePluginConfiguration {
   public StorageType storageType;  // How to store spans
   public long maxSpans;   // Max number of spans to store
   public boolean enabled; // Whether or not we are active
+  public boolean buffer;  // If disk storage, whether to buffer writes
   
   /**
    * Return a TracePluginConfiguration with default options.
@@ -41,5 +42,6 @@ public class TracePluginConfiguration {
     this.storageType = StorageType.MEMORY;
     this.maxSpans = 10000;
     this.enabled = true;
+    this.buffer = true;
   }
 }

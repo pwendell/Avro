@@ -139,8 +139,11 @@ public class TracePlugin extends RPCPlugin {
       }
     };
 
-    if (storageType.equals("MEMORY")) {
+    if (storageType == StorageType.MEMORY) {
       this.storage = new InMemorySpanStorage();
+    }
+    else if (storageType == StorageType.DISK) {
+      this.storage = new FileSpanStorage(false);
     }
     else { // default
       this.storage = new InMemorySpanStorage();
@@ -269,6 +272,14 @@ public class TracePlugin extends RPCPlugin {
         Util.getPayloadSize(context.getResponsePayload());
       this.storage.addSpan(this.childSpan.get());
       this.childSpan.set(null);
+    }
+  }
+  
+  public void stopClientServer() {
+    try {
+      this.clientFacingServer.stop();
+    } catch (Exception e) {
+      // ignore
     }
   }
   

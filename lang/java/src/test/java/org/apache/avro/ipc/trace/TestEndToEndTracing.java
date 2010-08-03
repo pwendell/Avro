@@ -37,6 +37,7 @@ import org.apache.avro.ipc.RPCPlugin;
 import org.apache.avro.ipc.Responder;
 import org.apache.avro.ipc.trace.SpanAggregator.SpanAggregationResults;
 import org.apache.avro.ipc.trace.SpanAggregator.TraceFormationResults;
+import org.apache.avro.ipc.trace.TracePlugin.StorageType;
 import org.junit.Test;
 
 /**
@@ -137,18 +138,35 @@ public class TestEndToEndTracing {
       return currentCount + 1;
     }
   }
-
+  
   @Test
-  public void testTraceAndCollection() throws Exception {
+  public void testTraceAndCollectionMemory() throws Exception {
     TracePluginConfiguration conf = new TracePluginConfiguration();
+    conf.storageType = StorageType.MEMORY;
+    testTraceAndCollection(conf);
+  }  
+  
+  @Test
+  public void testTraceAndCollectionDisk() throws Exception {
+    TracePluginConfiguration conf = new TracePluginConfiguration();
+    conf.storageType = StorageType.DISK;
+    conf.buffer = false;
+    testTraceAndCollection(conf);
+  }
+  
+  public void testTraceAndCollection(TracePluginConfiguration conf) throws Exception {
     conf.traceProb = 1.0;
     conf.port = 51010;
+    conf.clientPort = 12345;
     TracePlugin aPlugin = new TracePlugin(conf);
     conf.port = 51011;
+    conf.clientPort = 12346;
     TracePlugin bPlugin = new TracePlugin(conf);
     conf.port = 51012;
+    conf.clientPort = 12347;
     TracePlugin cPlugin = new TracePlugin(conf);
     conf.port = 51013;
+    conf.clientPort = 12348;
     TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
@@ -175,7 +193,7 @@ public class TestEndToEndTracing {
         advancedProtocol.getMessages().get("w").getRequest());
     params.put("req", 1);
     r.request("w", params);
-    
+    Thread.sleep(1000);
     ArrayList<Span> allSpans = new ArrayList<Span>();
     
     allSpans.addAll(aPlugin.storage.getAllSpans());
@@ -204,6 +222,18 @@ public class TestEndToEndTracing {
     // Just for fun, print to console
     System.out.println(traces.traces.get(0).printWithTiming());
     System.out.println(traces.traces.get(0).printBrief());
+    
+    aPlugin.httpServer.close();
+    aPlugin.stopClientServer();
+    bPlugin.httpServer.close();
+    bPlugin.stopClientServer();
+    cPlugin.httpServer.close();
+    cPlugin.stopClientServer();
+    dPlugin.httpServer.close();
+    dPlugin.stopClientServer();
+    server1.close();
+    server2.close();
+    server3.close();
   }
   
   /** Sleeps as requested. */
