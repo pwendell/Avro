@@ -63,12 +63,14 @@ public class TestBasicTracing {
   }
 
   @Test
-  public void testBasicTrace() throws IOException {
+  public void testBasicTrace() throws Exception {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.port = 51007;
+    conf.clientPort = 12346;
     conf.traceProb = 1.0;
     TracePlugin responderPlugin = new TracePlugin(conf);
     conf.port = 51008;
+    conf.clientPort = 12347;
     TracePlugin requestorPlugin = new TracePlugin(conf);
     
     Responder res = new TestResponder(protocol);
@@ -110,6 +112,11 @@ public class TestBasicTracing {
       assertFalse(requestorSpan.complete);
       assertFalse(responderSpan.complete);
     }
+    
+    requestorPlugin.clientFacingServer.stop();
+    requestorPlugin.httpServer.close();
+    responderPlugin.clientFacingServer.stop();
+    responderPlugin.httpServer.close();
   }
   
   /*
@@ -213,12 +220,16 @@ public class TestBasicTracing {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.traceProb = 1.0;
     conf.port = 51010;
+    conf.clientPort = 12346;
     TracePlugin aPlugin = new TracePlugin(conf);
     conf.port = 51011;
+    conf.clientPort = 12347;
     TracePlugin bPlugin = new TracePlugin(conf);
     conf.port = 51012;
+    conf.clientPort = 12348;
     TracePlugin cPlugin = new TracePlugin(conf);
     conf.port = 51013;
+    conf.clientPort = 12349;
     TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
@@ -300,6 +311,15 @@ public class TestBasicTracing {
     assertTrue(firstFound);
     assertTrue(secondFound);
     assertTrue(thirdFound);
+    
+    server1.close();
+    server2.close();
+    server3.close();
+    aPlugin.clientFacingServer.stop();
+    bPlugin.clientFacingServer.stop();
+    cPlugin.clientFacingServer.stop();
+    dPlugin.clientFacingServer.stop();
+    
   }
   
   /** Sleeps as requested. */

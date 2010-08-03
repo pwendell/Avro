@@ -143,12 +143,16 @@ public class TestEndToEndTracing {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.traceProb = 1.0;
     conf.port = 51010;
+    conf.clientPort = 12346;
     TracePlugin aPlugin = new TracePlugin(conf);
     conf.port = 51011;
+    conf.clientPort = 12347;
     TracePlugin bPlugin = new TracePlugin(conf);
     conf.port = 51012;
+    conf.clientPort = 12348;
     TracePlugin cPlugin = new TracePlugin(conf);
     conf.port = 51013;
+    conf.clientPort = 12349;
     TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
@@ -204,6 +208,14 @@ public class TestEndToEndTracing {
     // Just for fun, print to console
     System.out.println(traces.traces.get(0).printWithTiming());
     System.out.println(traces.traces.get(0).printBrief());
+    
+    server1.close();
+    server2.close();
+    server3.close();
+    aPlugin.clientFacingServer.stop();
+    bPlugin.clientFacingServer.stop();
+    cPlugin.clientFacingServer.stop();
+    dPlugin.clientFacingServer.stop();
   }
   
   /** Sleeps as requested. */
