@@ -16,10 +16,6 @@ package org.apache.avro.ipc.stats;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-<<<<<<< HEAD
-import org.apache.avro.ipc.stats.StaticServlet;
-=======
->>>>>>> origin/HEAD
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;

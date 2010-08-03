@@ -77,6 +77,7 @@ public class TestBasicTracing {
     res.addRPCPlugin(responderPlugin);
     
     HttpServer server = new HttpServer(res, 50000);
+    server.start();
     
     HttpTransceiver trans = new HttpTransceiver(
         new URL("http://localhost:50000"));
@@ -239,14 +240,17 @@ public class TestBasicTracing {
     Responder bRes = new RecursingResponder(advancedProtocol, bPlugin);
     bRes.addRPCPlugin(bPlugin);
     HttpServer server1 = new HttpServer(bRes, 21005);
+    server1.start();
 
     Responder cRes = new EndpointResponder(advancedProtocol);
     cRes.addRPCPlugin(cPlugin);
     HttpServer server2 = new HttpServer(cRes, 21006);
+    server2.start();
     
     Responder dRes = new EndpointResponder(advancedProtocol);
     dRes.addRPCPlugin(dPlugin);
     HttpServer server3 = new HttpServer(dRes, 21007);
+    server3.start();
     
     // Root requestor
     HttpTransceiver trans = new HttpTransceiver(
