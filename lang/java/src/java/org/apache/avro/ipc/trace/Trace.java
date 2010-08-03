@@ -51,7 +51,6 @@ public class Trace {
    * This is useful for grouping several traces which represent the same
    * execution path (for instance, when we want to calculate averages for a
    * large number of identical traces).
-   * @return
    */
   public int executionPathHash() {
     // The string representation will be unique to a call tree, so we

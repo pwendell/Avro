@@ -36,13 +36,11 @@ public interface SpanStorage {
   
   /**
    * Set the maximum number of spans to have in storage at any given time.
-   * @param bytes
    */
   void setMaxSpans(long maxSpans);
   
   /**
    * Return a list of all spans currently stored. For testing.
-   * @return
    */
   List<Span> getAllSpans();
 }
