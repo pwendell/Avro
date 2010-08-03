@@ -63,18 +63,21 @@ public class TestBasicTracing {
   }
 
   @Test
-  public void testBasicTrace() throws IOException {
+  public void testBasicTrace() throws Exception {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.port = 51007;
+    conf.clientPort = 12344;
     conf.traceProb = 1.0;
     TracePlugin responderPlugin = new TracePlugin(conf);
     conf.port = 51008;
+    conf.clientPort = 12345;
     TracePlugin requestorPlugin = new TracePlugin(conf);
     
     Responder res = new TestResponder(protocol);
     res.addRPCPlugin(responderPlugin);
     
     HttpServer server = new HttpServer(res, 50000);
+    server.start();
     
     HttpTransceiver trans = new HttpTransceiver(
         new URL("http://localhost:50000"));
@@ -110,6 +113,14 @@ public class TestBasicTracing {
       assertFalse(requestorSpan.complete);
       assertFalse(responderSpan.complete);
     }
+    
+    server.close();
+    
+    requestorPlugin.clientFacingServer.stop();
+    requestorPlugin.httpServer.close();
+    
+    responderPlugin.clientFacingServer.stop();
+    responderPlugin.httpServer.close();
   }
   
   /*
@@ -137,7 +148,7 @@ public class TestBasicTracing {
   
   Protocol advancedProtocol = Protocol.parse("{\"protocol\": \"Advanced\", "
       + "\"messages\": { " 
-      +	"\"w\": { \"request\": [{\"name\": \"req\", \"type\": \"int\"}], "
+      +  "\"w\": { \"request\": [{\"name\": \"req\", \"type\": \"int\"}], "
       + "   \"response\": \"int\"},"
       + "\"x\": { \"request\": [{\"name\": \"req\", \"type\": \"int\"}], "
       + "   \"response\": \"int\"},"
@@ -213,26 +224,33 @@ public class TestBasicTracing {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.traceProb = 1.0;
     conf.port = 51010;
+    conf.clientPort = 12346;
     TracePlugin aPlugin = new TracePlugin(conf);
     conf.port = 51011;
+    conf.clientPort = 12347;
     TracePlugin bPlugin = new TracePlugin(conf);
     conf.port = 51012;
+    conf.clientPort = 12348;
     TracePlugin cPlugin = new TracePlugin(conf);
     conf.port = 51013;
+    conf.clientPort = 12349;
     TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
     Responder bRes = new RecursingResponder(advancedProtocol, bPlugin);
     bRes.addRPCPlugin(bPlugin);
     HttpServer server1 = new HttpServer(bRes, 21005);
+    server1.start();
 
     Responder cRes = new EndpointResponder(advancedProtocol);
     cRes.addRPCPlugin(cPlugin);
     HttpServer server2 = new HttpServer(cRes, 21006);
+    server2.start();
     
     Responder dRes = new EndpointResponder(advancedProtocol);
     dRes.addRPCPlugin(dPlugin);
     HttpServer server3 = new HttpServer(dRes, 21007);
+    server3.start();
     
     // Root requestor
     HttpTransceiver trans = new HttpTransceiver(
@@ -258,7 +276,7 @@ public class TestBasicTracing {
     // Verify event counts and trace ID propagation
     for (Span s: aPlugin.storage.getAllSpans()) {
       assertEquals(2, s.events.size());
-      assertTrue(Util.IDsEqual(traceID, s.traceID));
+      assertTrue(Util.idsEqual(traceID, s.traceID));
       assertFalse(s.complete);
       rootSpanID = s.spanID;
     }
@@ -287,19 +305,32 @@ public class TestBasicTracing {
     
     boolean firstFound = false, secondFound = false, thirdFound = false;
     for (Span s: bPlugin.storage.getAllSpans()) {
-      if (Util.IDsEqual(s.spanID, firstSpanID)) {
+      if (Util.idsEqual(s.spanID, firstSpanID)) {
         firstFound = true;
       }
-      else if (Util.IDsEqual(s.spanID, secondSpanID)) {
+      else if (Util.idsEqual(s.spanID, secondSpanID)) {
         secondFound = true;
       }
-      else if (Util.IDsEqual(s.spanID, thirdSpanID)) {
+      else if (Util.idsEqual(s.spanID, thirdSpanID)) {
         thirdFound = true;
       }
     }
     assertTrue(firstFound);
     assertTrue(secondFound);
     assertTrue(thirdFound);
+    
+    server1.close();
+    server2.close();
+    server3.close();
+    aPlugin.httpServer.close();
+    aPlugin.clientFacingServer.stop();
+    bPlugin.httpServer.close();
+    bPlugin.clientFacingServer.stop();
+    cPlugin.httpServer.close();
+    cPlugin.clientFacingServer.stop();
+    dPlugin.httpServer.close();
+    dPlugin.clientFacingServer.stop();
+    
   }
   
   /** Sleeps as requested. */

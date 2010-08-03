@@ -157,30 +157,33 @@ public class TestEndToEndTracing {
   public void testTraceAndCollection(TracePluginConfiguration conf) throws Exception {
     conf.traceProb = 1.0;
     conf.port = 51010;
-    conf.clientPort = 12345;
+    conf.clientPort = 12346;
     TracePlugin aPlugin = new TracePlugin(conf);
     conf.port = 51011;
-    conf.clientPort = 12346;
+    conf.clientPort = 12347;
     TracePlugin bPlugin = new TracePlugin(conf);
     conf.port = 51012;
-    conf.clientPort = 12347;
+    conf.clientPort = 12348;
     TracePlugin cPlugin = new TracePlugin(conf);
     conf.port = 51013;
-    conf.clientPort = 12348;
+    conf.clientPort = 12349;
     TracePlugin dPlugin = new TracePlugin(conf);
     
     // Responders
     Responder bRes = new RecursingResponder(advancedProtocol, bPlugin);
     bRes.addRPCPlugin(bPlugin);
     HttpServer server1 = new HttpServer(bRes, 21005);
+    server1.start();
 
     Responder cRes = new EndpointResponder(advancedProtocol);
     cRes.addRPCPlugin(cPlugin);
     HttpServer server2 = new HttpServer(cRes, 21006);
+    server2.start();
     
     Responder dRes = new EndpointResponder(advancedProtocol);
     dRes.addRPCPlugin(dPlugin);
     HttpServer server3 = new HttpServer(dRes, 21007);
+    server3.start();
     
     // Root requestor
     HttpTransceiver trans = new HttpTransceiver(
@@ -223,17 +226,17 @@ public class TestEndToEndTracing {
     System.out.println(traces.traces.get(0).printWithTiming());
     System.out.println(traces.traces.get(0).printBrief());
     
-    aPlugin.httpServer.close();
-    aPlugin.stopClientServer();
-    bPlugin.httpServer.close();
-    bPlugin.stopClientServer();
-    cPlugin.httpServer.close();
-    cPlugin.stopClientServer();
-    dPlugin.httpServer.close();
-    dPlugin.stopClientServer();
     server1.close();
     server2.close();
     server3.close();
+    aPlugin.httpServer.close();
+    aPlugin.clientFacingServer.stop();
+    bPlugin.httpServer.close();
+    bPlugin.clientFacingServer.stop();
+    cPlugin.httpServer.close();
+    cPlugin.clientFacingServer.stop();
+    dPlugin.httpServer.close();
+    dPlugin.clientFacingServer.stop();
   }
   
   /** Sleeps as requested. */

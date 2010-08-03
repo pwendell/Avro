@@ -34,17 +34,15 @@ public interface SpanStorage {
    * Add a span. 
    * @param s
    */
-  public void addSpan(Span s);
+  void addSpan(Span s);
   
   /**
    * Set the maximum number of spans to have in storage at any given time.
-   * @param bytes
    */
-  public void setMaxSpans(long maxSpans);
+  void setMaxSpans(long maxSpans);
   
   /**
    * Return a list of all spans currently stored. For testing.
-   * @return
    */
-  public List<Span> getAllSpans();
+  List<Span> getAllSpans();
 }

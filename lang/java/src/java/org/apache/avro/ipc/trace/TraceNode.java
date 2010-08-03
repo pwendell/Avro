@@ -90,6 +90,5 @@ class TraceNode {
     long serverSend = extractEventTime(this, SpanEvent.SERVER_SEND);
     
     return serverSend - serverReceive;
-  }
-  
+  } 
 }

@@ -36,23 +36,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testSpanEquality() {
     Span root = new Span();
-    root.spanID = Util.IDValue(10);
+    root.spanID = Util.idValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = Util.IDValue(11);
-    a.parentSpanID = Util.IDValue(10);
+    a.spanID = Util.idValue(11);
+    a.parentSpanID = Util.idValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = Util.IDValue(12);
-    b.parentSpanID = Util.IDValue(10);
+    b.spanID = Util.idValue(12);
+    b.parentSpanID = Util.idValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = Util.IDValue(13);
-    c.parentSpanID = Util.IDValue(10);
+    c.spanID = Util.idValue(13);
+    c.parentSpanID = Util.idValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();
@@ -63,18 +63,18 @@ public class TestSpanTraceFormation {
     Trace trace1 = Trace.extractTrace(spans);
     
     Span d = new Span();
-    d.spanID = Util.IDValue(11);
-    d.parentSpanID = Util.IDValue(10);
+    d.spanID = Util.idValue(11);
+    d.parentSpanID = Util.idValue(10);
     d.messageName = new Utf8("childCall1");
     
     Span e = new Span();
-    e.spanID = Util.IDValue(12);
-    e.parentSpanID = Util.IDValue(10);
+    e.spanID = Util.idValue(12);
+    e.parentSpanID = Util.idValue(10);
     e.messageName = new Utf8("childCall2");
     
     Span f = new Span();
-    f.spanID = Util.IDValue(13);
-    f.parentSpanID = Util.IDValue(10);
+    f.spanID = Util.idValue(13);
+    f.parentSpanID = Util.idValue(10);
     f.messageName = new Utf8("childCall3");
     
     spans.clear();
@@ -91,23 +91,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testSpanEquality2() {
     Span root = new Span();
-    root.spanID = Util.IDValue(10);
+    root.spanID = Util.idValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = Util.IDValue(11);
-    a.parentSpanID = Util.IDValue(10);
+    a.spanID = Util.idValue(11);
+    a.parentSpanID = Util.idValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = Util.IDValue(12);
-    b.parentSpanID = Util.IDValue(10);
+    b.spanID = Util.idValue(12);
+    b.parentSpanID = Util.idValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = Util.IDValue(13);
-    c.parentSpanID = Util.IDValue(10);
+    c.spanID = Util.idValue(13);
+    c.parentSpanID = Util.idValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();
@@ -118,23 +118,23 @@ public class TestSpanTraceFormation {
     Trace trace1 = Trace.extractTrace(spans);
     
     Span d = new Span();
-    d.spanID = Util.IDValue(11);
-    d.parentSpanID = Util.IDValue(10);
+    d.spanID = Util.idValue(11);
+    d.parentSpanID = Util.idValue(10);
     d.messageName = new Utf8("childCall1");
     
     Span e = new Span();
-    e.spanID = Util.IDValue(12);
-    e.parentSpanID = Util.IDValue(10);
+    e.spanID = Util.idValue(12);
+    e.parentSpanID = Util.idValue(10);
     e.messageName = new Utf8("childCall2");
     
     Span f = new Span();
-    f.spanID = Util.IDValue(13);
-    f.parentSpanID = Util.IDValue(10);
+    f.spanID = Util.idValue(13);
+    f.parentSpanID = Util.idValue(10);
     f.messageName = new Utf8("childCall3");
     
     Span g = new Span();
-    g.spanID = Util.IDValue(14);
-    g.parentSpanID = Util.IDValue(13);
+    g.spanID = Util.idValue(14);
+    g.parentSpanID = Util.idValue(13);
     g.messageName = new Utf8("childCall4");
     
     spans.clear();
@@ -151,9 +151,9 @@ public class TestSpanTraceFormation {
   /** Create a span with bogus timing events. */
   public static Span createFullSpan(Long id, Long parentID, String messageName) {
     Span out = new Span();
-    out.spanID = Util.IDValue(id);
+    out.spanID = Util.idValue(id);
     if (parentID != null) {
-      out.parentSpanID = Util.IDValue(parentID);
+      out.parentSpanID = Util.idValue(parentID);
     }
     out.messageName = new Utf8(messageName);
     
@@ -225,23 +225,23 @@ public class TestSpanTraceFormation {
   @Test
   public void testBasicTraceFormation() {
     Span root = new Span();
-    root.spanID = Util.IDValue(10);
+    root.spanID = Util.idValue(10);
     root.parentSpanID = null;
     root.messageName = new Utf8("startCall");
     
     Span a = new Span();
-    a.spanID = Util.IDValue(11);
-    a.parentSpanID = Util.IDValue(10);
+    a.spanID = Util.idValue(11);
+    a.parentSpanID = Util.idValue(10);
     a.messageName = new Utf8("childCall1");
     
     Span b = new Span();
-    b.spanID = Util.IDValue(12);
-    b.parentSpanID = Util.IDValue(10);
+    b.spanID = Util.idValue(12);
+    b.parentSpanID = Util.idValue(10);
     b.messageName = new Utf8("childCall2");
     
     Span c = new Span();
-    c.spanID = Util.IDValue(13);
-    c.parentSpanID = Util.IDValue(10);
+    c.spanID = Util.idValue(13);
+    c.parentSpanID = Util.idValue(10);
     c.messageName = new Utf8("childCall3");
     
     List<Span> spans = new LinkedList<Span>();

@@ -21,8 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.apache.avro.ipc.trace.Util.IDValue;
-import static org.apache.avro.ipc.trace.Util.IDsEqual;
+import static org.apache.avro.ipc.trace.Util.idValue;
+import static org.apache.avro.ipc.trace.Util.idsEqual;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -45,8 +45,8 @@ public class TestSpanAggregation {
    */
   @Test
   public void testSpanCompletion1() {
-    Span span1a = createClientSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
-    Span span1b = createServerSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
+    Span span1a = createClientSpan(idValue(1), idValue(1), null, new Utf8("a"));
+    Span span1b = createServerSpan(idValue(1), idValue(1), null, new Utf8("a"));
     
     List<Span> partials = new ArrayList<Span>();
     partials.add(span1a);
@@ -60,7 +60,7 @@ public class TestSpanAggregation {
     
     Span result = results.completeSpans.get(0);
     assertEquals(null, result.parentSpanID);
-    assertTrue(IDsEqual(IDValue(1), result.spanID));
+    assertTrue(idsEqual(idValue(1), result.spanID));
     assertEquals(4, result.events.size());
   }
   
@@ -70,19 +70,19 @@ public class TestSpanAggregation {
   @Test
   public void testInvalidSpanCompletion() {
     // Trace: 1, Span: 1, Parent: null 
-    Span span1a = createClientSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
-    Span span1b = createServerSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
+    Span span1a = createClientSpan(idValue(1), idValue(1), null, new Utf8("a"));
+    Span span1b = createServerSpan(idValue(1), idValue(1), null, new Utf8("a"));
     
     // Trace: 1, Span: 10, Parent: 3 
-    Span spanBogus1 = createClientSpan(IDValue(1), IDValue(10), IDValue(3), new Utf8("not"));
-    Span spanBogus2 = createServerSpan(IDValue(1), IDValue(10), IDValue(3), new Utf8("equal"));
+    Span spanBogus1 = createClientSpan(idValue(1), idValue(10), idValue(3), new Utf8("not"));
+    Span spanBogus2 = createServerSpan(idValue(1), idValue(10), idValue(3), new Utf8("equal"));
     
     // Trace: 1, Span: 5, Parent: (2/3) 
-    Span spanBogus3 = createClientSpan(IDValue(1), IDValue(5), IDValue(2), new Utf8("equal"));
-    Span spanBogus4 = createServerSpan(IDValue(1), IDValue(5), IDValue(3), new Utf8("equal"));
+    Span spanBogus3 = createClientSpan(idValue(1), idValue(5), idValue(2), new Utf8("equal"));
+    Span spanBogus4 = createServerSpan(idValue(1), idValue(5), idValue(3), new Utf8("equal"));
     
     // Trace:1, Span: 4, Parent: 1
-    Span spanBogus5 = createClientSpan(IDValue(1), IDValue(4), IDValue(1), new Utf8("alone"));
+    Span spanBogus5 = createClientSpan(idValue(1), idValue(4), idValue(1), new Utf8("alone"));
     
     List<Span> partials = new ArrayList<Span>();
     partials.add(span1a);
@@ -107,7 +107,7 @@ public class TestSpanAggregation {
     assertTrue(results.completeSpans.size() == 1);
     Span result = results.completeSpans.get(0);
     assertTrue(result.complete);
-    assertTrue(IDsEqual(IDValue(1), result.spanID));
+    assertTrue(idsEqual(idValue(1), result.spanID));
     assertEquals(new Utf8("requestorHostname"), result.requestorHostname);
     assertEquals(new Utf8("responderHostname"), result.responderHostname);
     assertNull(result.parentSpanID);
@@ -123,20 +123,20 @@ public class TestSpanAggregation {
    */
   @Test
   public void testTraceFormation1() {
-    Span a1 = createClientSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
-    Span a2 = createServerSpan(IDValue(1), IDValue(1), null, new Utf8("a"));
+    Span a1 = createClientSpan(idValue(1), idValue(1), null, new Utf8("a"));
+    Span a2 = createServerSpan(idValue(1), idValue(1), null, new Utf8("a"));
     
-    Span b1 = createClientSpan(IDValue(1), IDValue(2), IDValue(1), new Utf8("b"));
-    Span b2 = createServerSpan(IDValue(1), IDValue(2), IDValue(1), new Utf8("b"));
+    Span b1 = createClientSpan(idValue(1), idValue(2), idValue(1), new Utf8("b"));
+    Span b2 = createServerSpan(idValue(1), idValue(2), idValue(1), new Utf8("b"));
 
-    Span c1 = createClientSpan(IDValue(1), IDValue(3), IDValue(2), new Utf8("c"));
-    Span c2 = createServerSpan(IDValue(1), IDValue(3), IDValue(2), new Utf8("c"));
+    Span c1 = createClientSpan(idValue(1), idValue(3), idValue(2), new Utf8("c"));
+    Span c2 = createServerSpan(idValue(1), idValue(3), idValue(2), new Utf8("c"));
     
-    Span d1 = createClientSpan(IDValue(1), IDValue(4), IDValue(2), new Utf8("d"));
-    Span d2 = createServerSpan(IDValue(1), IDValue(4), IDValue(2), new Utf8("d"));
+    Span d1 = createClientSpan(idValue(1), idValue(4), idValue(2), new Utf8("d"));
+    Span d2 = createServerSpan(idValue(1), idValue(4), idValue(2), new Utf8("d"));
     
-    Span e1 = createClientSpan(IDValue(1), IDValue(5), IDValue(4), new Utf8("e"));
-    Span e2 = createServerSpan(IDValue(1), IDValue(5), IDValue(4), new Utf8("e"));
+    Span e1 = createClientSpan(idValue(1), idValue(5), idValue(4), new Utf8("e"));
+    Span e2 = createServerSpan(idValue(1), idValue(5), idValue(4), new Utf8("e"));
     
     List<Span> spans = new LinkedList<Span>();
     spans.addAll(Arrays.asList(new Span[] {a1, a2, b1, b2, c1, c2, d1, d2, e1, e2}));

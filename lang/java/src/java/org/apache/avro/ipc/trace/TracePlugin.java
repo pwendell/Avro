@@ -19,14 +19,13 @@
 package org.apache.avro.ipc.trace;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.BindException;
 import java.nio.ByteBuffer;
-import java.nio.LongBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
@@ -37,6 +36,7 @@ import org.apache.avro.ipc.RPCPlugin;
 import org.apache.avro.specific.SpecificResponder;
 import org.apache.avro.util.Utf8;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.bio.SocketConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -154,7 +154,23 @@ public class TracePlugin extends RPCPlugin {
     // Start serving span data
     responder = new SpecificResponder(
         AvroTrace.PROTOCOL, new TraceResponder(this.storage)); 
-    httpServer = new HttpServer(responder, this.port);
+    
+    boolean bound = false;
+    
+    while (!bound) {
+      // rather than die if port is taken, try to fail over to another port.
+      try {
+        httpServer = new HttpServer(responder, this.port);
+        bound = true;
+      } catch (AvroRuntimeException e) {
+        if (e.getCause() instanceof BindException) {
+          LOG.error("Failed to bind to port: " + this.port);
+          this.port = this.port +1;
+        } else {
+          throw e;
+        }
+      }
+    }
     
     // Start client-facing servlet
     initializeClientServer();
@@ -288,13 +304,30 @@ public class TracePlugin extends RPCPlugin {
    * prefer to attach client Servlet to their own server. 
    */
   protected void initializeClientServer() {
-    clientFacingServer = new Server(clientPort);
+    clientFacingServer = new Server();
     Context context = new Context(clientFacingServer, "/");
     context.addServlet(new ServletHolder(new TraceClientServlet()), "/");
-    try {
-      clientFacingServer.start();
-    } catch (Exception e) {
-      
+    boolean connected = false;
+    SocketConnector socket = null;
+    
+    // Keep trying ports until we can connect
+    while (!connected) {
+      try {
+        socket = new SocketConnector();
+        socket.setPort(clientPort);
+        clientFacingServer.addConnector(socket);
+        clientFacingServer.start();
+        connected = true;
+      } catch (Exception e) {
+        if (e instanceof BindException) {
+          clientFacingServer.removeConnector(socket);
+          clientPort = clientPort + 1;
+          continue;
+        }
+        else {
+          break; // Fail silently here (this is currently unused)
+        }
+      }
     }
   }
 }

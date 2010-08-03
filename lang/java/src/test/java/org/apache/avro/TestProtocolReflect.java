@@ -53,12 +53,15 @@ public class TestProtocolReflect {
     void error() throws SimpleException;
   }
   
+  private static boolean throwUndeclaredError;
+
   public static class TestImpl implements Simple {
     public String hello(String greeting) { return "goodbye"; }
     public int add(int arg1, int arg2) { return arg1 + arg2; }
     public TestRecord echo(TestRecord record) { return record; }
     public byte[] echoBytes(byte[] data) { return data; }
     public void error() throws SimpleException {
+      if (throwUndeclaredError) throw new RuntimeException("foo");
       throw new SimpleException("foo");
     }
   }
@@ -72,6 +75,7 @@ public class TestProtocolReflect {
     if (server != null) return;
     server = new SocketServer(new ReflectResponder(Simple.class, new TestImpl()),
                               new InetSocketAddress(0));
+    server.start();
     client = new SocketTransceiver(new InetSocketAddress(server.getPort()));
     proxy = (Simple)ReflectRequestor.getClient(Simple.class, client);
   }
@@ -116,6 +120,20 @@ public class TestProtocolReflect {
     }
     assertNotNull(error);
     assertEquals("foo", error.getMessage());
+  }
+
+  @Test
+  public void testUndeclaredError() throws Exception {
+    this.throwUndeclaredError = true;
+    RuntimeException error = null;
+    try {
+      proxy.error();
+    } catch (RuntimeException e) {
+      error = e;
+    } finally {
+      this.throwUndeclaredError = false;
+    }
+    assertNotNull(error);
   }
 
   @AfterClass

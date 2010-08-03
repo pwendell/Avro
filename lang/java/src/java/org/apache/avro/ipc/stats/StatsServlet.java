@@ -19,7 +19,6 @@ package org.apache.avro.ipc.stats;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,8 +28,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.UnavailableException;
 import javax.servlet.http.HttpServlet;
@@ -44,8 +41,6 @@ import org.apache.velocity.exception.ResourceNotFoundException;
 
 import org.apache.avro.Protocol.Message;
 import org.apache.avro.ipc.RPCContext;
-import org.mortbay.jetty.servlet.DefaultServlet;
-import org.mortbay.resource.Resource;
 
 /**
  * Exposes information provided by a StatsPlugin as

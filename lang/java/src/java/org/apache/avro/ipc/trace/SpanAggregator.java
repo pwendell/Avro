@@ -17,7 +17,7 @@
  */
 package org.apache.avro.ipc.trace;
 
-import static org.apache.avro.ipc.trace.Util.IDsEqual;
+import static org.apache.avro.ipc.trace.Util.idsEqual;
 import static org.apache.avro.ipc.trace.Util.longValue;
 
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ public class SpanAggregator {
    */
   public static class SpanAggregationResults {
     /** Spans which have data from client and server. */
-    public List<Span> completeSpans; 
+    public List<Span> completeSpans;
     
     /** Spans which have data only from client or server, or in which
      * an ID collision was detected.*/
@@ -93,7 +93,7 @@ public class SpanAggregator {
       else {
         Span other = seenSpans.remove(Util.longValue(s.spanID));  
         if (!other.messageName.equals(s.messageName) ||
-            !IDsEqual(other.parentSpanID, s.parentSpanID)) {
+            !idsEqual(other.parentSpanID, s.parentSpanID)) {
           out.incompleteSpans.add(s);
           out.incompleteSpans.add(other);
         } else {

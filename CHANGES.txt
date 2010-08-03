@@ -7,6 +7,10 @@ Avro 1.4.0 (unreleased)
     AVRO-372.  Rename GenAvro to be Avro IDL.  The tool name is now
     'idl'.  The file suffix is now '.avdl'.  (cutting)
 
+    AVRO-544. Java: Change Server interface, adding start() and join()
+    methods.  Servers are no longer started in their constructor.
+    (hammer & cutting)
+
   NEW FEATURES
 
     AVRO-493. Add support for Hadoop Mapreduce with Avro data files. (cutting)
@@ -29,6 +33,10 @@ Avro 1.4.0 (unreleased)
     implementation. (Harry Wang via cutting)
 
   IMPROVEMENTS
+
+    AVRO-587. Add Charts and Templating to Stats View
+    (Patrick Wendell via philz)
+
     AVRO-584. Update Histogram for Stats Plugin
     (Patrick Wendell via philz)
 
@@ -62,6 +70,18 @@ Avro 1.4.0 (unreleased)
 
     AVRO-494. Add support for default values to IDL.  (cutting)
 
+<<<<<<< HEAD
+=======
+    AVRO-596. Start Netty server eagerly in constructor.
+    (Patrick Linehan via cutting)
+
+    AVRO-581. Java: Update MapReduce APIs to use key/value pairs for
+    intermediate data.  (cutting)
+
+    AVRO-582. Java: Add comment to generated code indicating that
+    set() and get() are not for use by applications.  (cutting)
+
+>>>>>>> origin/HEAD
   BUG FIXES
 
     AVRO-502. Memory leak from parsing JSON schema.
@@ -76,6 +96,10 @@ Avro 1.4.0 (unreleased)
 
     AVRO-571. Fix how we handle out-of-bounds indexes for union and 
     enum parsing in Python (hammer)
+
+    AVRO-589. ClassCastException: org.apache.avro.io.parsing.Symbol$Alternative cannot be cast to org.apache.avro.io.parsing.Symbol$UnionAdjustAction (thiru)
+
+    AVRO-573. Java: Fix various bugs with undeclared RPC exceptions. (cutting)
 
 Avro 1.3.3 (7 June 2010)
 
