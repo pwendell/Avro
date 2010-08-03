@@ -66,11 +66,11 @@ public class TestBasicTracing {
   public void testBasicTrace() throws Exception {
     TracePluginConfiguration conf = new TracePluginConfiguration();
     conf.port = 51007;
-    conf.clientPort = 12346;
+    conf.clientPort = 12344;
     conf.traceProb = 1.0;
     TracePlugin responderPlugin = new TracePlugin(conf);
     conf.port = 51008;
-    conf.clientPort = 12347;
+    conf.clientPort = 12345;
     TracePlugin requestorPlugin = new TracePlugin(conf);
     
     Responder res = new TestResponder(protocol);
@@ -113,8 +113,11 @@ public class TestBasicTracing {
       assertFalse(responderSpan.complete);
     }
     
+    server.close();
+    
     requestorPlugin.clientFacingServer.stop();
     requestorPlugin.httpServer.close();
+    
     responderPlugin.clientFacingServer.stop();
     responderPlugin.httpServer.close();
   }
