@@ -19,7 +19,6 @@ package org.apache.avro.ipc.stats;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;

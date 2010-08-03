@@ -22,6 +22,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
+<<<<<<< HEAD
+=======
+import java.util.concurrent.CountDownLatch;
+>>>>>>> origin/HEAD
 import java.util.concurrent.Executors;
 
 import org.apache.avro.ipc.NettyTransportCodec.NettyDataPack;
@@ -49,17 +53,25 @@ import org.slf4j.LoggerFactory;
 /**
  * A Netty-based RPC {@link Server} implementation.
  */
+<<<<<<< HEAD
 public class NettyServer extends Thread implements Server {
+=======
+public class NettyServer implements Server {
+>>>>>>> origin/HEAD
   private static final Logger LOG = LoggerFactory.getLogger(NettyServer.class
       .getName());
 
   private Responder responder;
+<<<<<<< HEAD
   private InetSocketAddress addr;
+=======
+>>>>>>> origin/HEAD
 
   private Channel serverChannel;
   private ChannelGroup allChannels = new DefaultChannelGroup(
       "avro-netty-server");
   private ChannelFactory channelFactory;
+<<<<<<< HEAD
 
   public NettyServer(Responder responder, InetSocketAddress addr) {
     this.responder = responder;
@@ -84,6 +96,12 @@ public class NettyServer extends Thread implements Server {
 
   @Override
   public void run() {
+=======
+  private CountDownLatch closed = new CountDownLatch(1);
+  
+  public NettyServer(Responder responder, InetSocketAddress addr) {
+    this.responder = responder;
+>>>>>>> origin/HEAD
     channelFactory = new NioServerSocketChannelFactory(Executors
         .newCachedThreadPool(), Executors.newCachedThreadPool());
     ServerBootstrap bootstrap = new ServerBootstrap(channelFactory);
@@ -101,6 +119,32 @@ public class NettyServer extends Thread implements Server {
     allChannels.add(serverChannel);
   }
 
+<<<<<<< HEAD
+=======
+  @Override
+  public void start() {
+    // No-op.
+  }
+  
+  @Override
+  public void close() {
+    ChannelGroupFuture future = allChannels.close();
+    future.awaitUninterruptibly();
+    channelFactory.releaseExternalResources();
+    closed.countDown();
+  }
+  
+  @Override
+  public int getPort() {
+    return ((InetSocketAddress) serverChannel.getLocalAddress()).getPort();
+  }
+
+  @Override
+  public void join() throws InterruptedException {
+    closed.await();
+  }
+
+>>>>>>> origin/HEAD
   /**
    * Avro server handler for the Netty transport 
    */

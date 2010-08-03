@@ -25,4 +25,8 @@ public class StaticServlet extends DefaultServlet {
       return null;
     }
   }
+<<<<<<< HEAD
 } 
+=======
+} 
+>>>>>>> origin/HEAD

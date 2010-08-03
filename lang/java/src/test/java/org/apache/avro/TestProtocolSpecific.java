@@ -53,12 +53,15 @@ public class TestProtocolSpecific {
 
   public static int ackCount;
 
+  private static boolean throwUndeclaredError;
+
   public static class TestImpl implements Simple {
     public Utf8 hello(Utf8 greeting) { return new Utf8("goodbye"); }
     public int add(int arg1, int arg2) { return arg1 + arg2; }
     public TestRecord echo(TestRecord record) { return record; }
     public ByteBuffer echoBytes(ByteBuffer data) { return data; }
     public Void error() throws AvroRemoteException {
+      if (throwUndeclaredError) throw new RuntimeException("foo");
       TestError error = new TestError();
       error.message = new Utf8("an error");
       throw error;
@@ -75,6 +78,7 @@ public class TestProtocolSpecific {
     if (server != null) return;
     server = new SocketServer(new SpecificResponder(Simple.class, new TestImpl()),
                               new InetSocketAddress(0));
+    server.start();
     client = new SocketTransceiver(new InetSocketAddress(server.getPort()));
     proxy = (Simple)SpecificRequestor.getClient(Simple.class, client);
   }
@@ -142,6 +146,21 @@ public class TestProtocolSpecific {
   }
 
   @Test
+  public void testUndeclaredError() throws Exception {
+    this.throwUndeclaredError = true;
+    RuntimeException error = null;
+    try {
+      proxy.error();
+    } catch (RuntimeException e) {
+      error = e;
+    } finally {
+      this.throwUndeclaredError = false;
+    }
+    assertNotNull(error);
+  }
+
+
+  @Test
   public void testOneWay() throws IOException {
     ackCount = 0;
     proxy.ack();
@@ -186,6 +205,7 @@ public class TestProtocolSpecific {
       SocketServer server = new SocketServer(
           new SpecificResponder(Simple.class, new TestImpl()),
           new InetSocketAddress(0));
+      server.start();
       File portFile = new File(SERVER_PORTS_DIR, "java-port");
       FileWriter w = new FileWriter(portFile);
       w.write(Integer.toString(server.getPort()));

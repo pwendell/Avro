@@ -193,15 +193,15 @@ public class TestStatsPluginAndServlet {
     r.addRPCPlugin(p);
 
     // Start Avro server
-    new HttpServer(r, Integer.parseInt(args[0]));
+    HttpServer avroServer = new HttpServer(r, Integer.parseInt(args[0]));
+    avroServer.start();
 
     StatsServer ss = new StatsServer(p, 8080);
     
     HttpTransceiver trans = new HttpTransceiver(
         new URL("http://localhost:" + Integer.parseInt(args[0])));
     GenericRequestor req = new GenericRequestor(protocol, trans); 
-    
-    
+
     while(true) {
       Thread.sleep(1000);
       GenericRecord params = new GenericData.Record(protocol.getMessages().get(
