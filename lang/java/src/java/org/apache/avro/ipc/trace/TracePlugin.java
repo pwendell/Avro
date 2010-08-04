@@ -84,12 +84,23 @@ public class TracePlugin extends RPCPlugin {
     public GenericArray<Span> getAllSpans() throws AvroRemoteException {
       List<Span> spans = this.spanStorage.getAllSpans();
       GenericData.Array<Span> out;
-      synchronized (spans) { 
-        out = new GenericData.Array<Span>(spans.size(), 
-          Schema.createArray(Span.SCHEMA$));
-        for (Span s: spans) {
-          out.add(s);
-        }
+      out = new GenericData.Array<Span>(spans.size(), 
+        Schema.createArray(Span.SCHEMA$));
+      for (Span s: spans) {
+        out.add(s);
+      }
+      return out;
+    }
+
+    @Override
+    public GenericArray<Span> getSpansInRange(long start, long end)
+        throws AvroRemoteException {
+      List<Span> spans = this.spanStorage.getSpansInRange(start, end);
+      GenericData.Array<Span> out;
+      out = new GenericData.Array<Span>(spans.size(), 
+        Schema.createArray(Span.SCHEMA$));
+      for (Span s: spans) {
+        out.add(s);
       }
       return out;
     }
@@ -143,7 +154,7 @@ public class TracePlugin extends RPCPlugin {
       this.storage = new InMemorySpanStorage();
     }
     else if (storageType == StorageType.DISK) {
-      this.storage = new FileSpanStorage(false);
+      this.storage = new FileSpanStorage(false, conf.compressionLevel);
     }
     else { // default
       this.storage = new InMemorySpanStorage();

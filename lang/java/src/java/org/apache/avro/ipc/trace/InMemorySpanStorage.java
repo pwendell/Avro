@@ -64,4 +64,10 @@ public class InMemorySpanStorage implements SpanStorage {
   public List<Span> getAllSpans() {
     return (LinkedList<Span>) this.spans.clone();
   }
+
+  @Override
+  public List<Span> getSpansInRange(long start, long end) {
+    // TODO Auto-generated method stub
+    return null;
+  }
 }

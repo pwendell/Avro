@@ -53,7 +53,6 @@ class Util {
     return foundEvents;
   }
   
-  
   /**
    * Get the size of an RPC payload.
    */

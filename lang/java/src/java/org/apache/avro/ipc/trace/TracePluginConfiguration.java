@@ -31,6 +31,8 @@ public class TracePluginConfiguration {
   public long maxSpans;   // Max number of spans to store
   public boolean enabled; // Whether or not we are active
   public boolean buffer;  // If disk storage, whether to buffer writes
+  public int compressionLevel; // If using file storage, what compression
+                               // level (0-9).
   
   /**
    * Return a TracePluginConfiguration with default options.
@@ -43,5 +45,6 @@ public class TracePluginConfiguration {
     this.maxSpans = 10000;
     this.enabled = true;
     this.buffer = true;
+    this.compressionLevel = 9;
   }
 }
